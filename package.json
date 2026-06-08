@@ -1,0 +1,25 @@
+{
+  "name": "composer-sdk-examples",
+  "version": "0.0.0",
+  "private": true,
+  "description": "Runnable examples for @lifi/composer-sdk",
+  "license": "Apache-2.0",
+  "type": "module",
+  "scripts": {
+    "example": "tsx examples/run.ts",
+    "start": "tsx examples/run.ts",
+    "typecheck": "tsc --noEmit"
+  },
+  "dependencies": {
+    "@lifi/compose-spec": "0.2.0-staging.4",
+    "@lifi/composer-sdk": "0.2.0-staging.4",
+    "boxen": "^8.0.1",
+    "chalk": "^5.6.2",
+    "json-colorizer": "^3.0.1"
+  },
+  "devDependencies": {
+    "@types/node": "^22.10.0",
+    "tsx": "^4.20.4",
+    "typescript": "^5.9.2"
+  }
+}
