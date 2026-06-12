@@ -4,7 +4,7 @@ Runnable examples for [`@lifi/composer-sdk`](https://www.npmjs.com/package/@lifi
 
 These examples are ported from the SDK's own `src/examples/` directory so they can be run directly, without digging through `node_modules`. Each example builds a `ComposeCompileRequest`; the runner sends it to a live Compose backend and prints the request and result.
 
-Tracks `@lifi/composer-sdk@0.2.0-staging.4` (and its lockstep `@lifi/compose-spec` peer).
+Tracks the `@staging` release of `@lifi/composer-sdk` (and its lockstep `@lifi/compose-spec` peer) — see `package.json` for the pinned version.
 
 ## Setup
 
@@ -46,7 +46,6 @@ Run with no name to see the full list. Available examples:
 | Name                | What it does                                                        |
 | ------------------- | ------------------------------------------------------------------- |
 | `swap`              | Swap WETH to USDC via LI.FI                                         |
-| `swap-fee`          | Swap WETH to USDC with a 50 bps integrator fee                     |
 | `zap`               | Zap USDC into an Aave lending position                             |
 | `swap-zap`          | Swap WETH to USDC, then zap into Aave                              |
 | `split-zap`         | Split USDC 60/40 and zap into Aave + Morpho vaults                |
@@ -56,7 +55,6 @@ Run with no name to see the full list. Available examples:
 | `approve-deposit`   | Approve a vault, deposit USDC, and graduate shares via `asResource` |
 | `aave-repay`        | Repay an Aave v3 WETH debt by supplying WETH                       |
 | `aave-repay-atoken` | Repay an Aave v3 USDC debt by burning proxy aTokens               |
-| `aave-claim`        | Claim AAVE rewards and forward them to a recipient                 |
 | `aave-emode`        | Switch the executor's Aave v3 eMode category                       |
 | `consolidate`       | Consolidate multiple ERC-20 balances into USDC                     |
 | `consolidate-eth`   | Consolidate multiple ERC-20 balances into native ETH               |
@@ -67,7 +65,6 @@ Run with no name to see the full list. Available examples:
 | `raw-call`          | Query a contract with pre-encoded calldata, then scale with arithmetic |
 | `read-state`        | Compare `peek`, `staticCall`, and `balanceOf` reads                |
 | `redeem`            | Redeem ERC-4626 vault shares via `core.call`                       |
-| `claim`             | Claim rewards from a contract (resource-free call)                 |
 | `wrap-eth`          | Wrap native ETH into WETH via a value call                         |
 | `transfer`          | Transfer a full token balance to a recipient                       |
 | `partial-transfer`  | Transfer a specific amount, keeping the remainder                  |
@@ -79,16 +76,23 @@ Example:
 LIFI_API_KEY=your-key npm run example swap-zap
 ```
 
+A few example sources are not wired into the runner and serve as copy-pasteable
+references only: `swapWithFee.ts` (integrator fee), `aaveClaimRewards.ts` (claim
+AAVE rewards), and `buildClaimRewards` in `callContract.ts` (resource-free claim).
+
 ### Staged examples (flashloan / lending / debt migration)
 
 These live under `examples/staged/` and demonstrate flashloan-powered debt
-migration and lending flows. They are a **preview available during the ETHGlobal
-hackathon** and require a separate backend, `https://ethglobal-composer.li.quest`
-— the runner targets it automatically for staged examples (set `COMPOSER_BASE_URL`
-to override). Against the default production backend these ops are not resolvable.
-They're run the same way (`npm run example <name>`) and listed separately by the
-runner. (`aave-hf-explode` additionally needs the signer to hold an Aave v3
-position on Base so the health factor resolves.)
+migration and lending flows. They use staged ops that are published on the
+`@staging` dist-tag but not yet enabled on the default production backend, so
+run them with the `--staged` flag against the preview backend:
+
+```bash
+COMPOSER_BASE_URL=https://ethglobal-composer.li.quest npm run example -- --staged <name>
+```
+
+(`aave-hf-explode` additionally needs the signer to hold an Aave v3 position on
+Base so the health factor resolves.)
 
 | Name                            | What it does                                                          |
 | ------------------------------- | --------------------------------------------------------------------- |

@@ -62,7 +62,6 @@ export const buildAaveSetEMode = ({
     simulationPolicy: 'strict',
     signer: owner,
     inputs: {},
-    sweepTo: builder.context.sender,
   });
 
   return { flow, request };

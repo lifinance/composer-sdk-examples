@@ -17,12 +17,13 @@ export interface AaveHealthFactorExplodeInput {
 /**
  * EXPLODE / DecomposeValue showcase.
  *
- * NOTE: this uses the EXPLODE opcode, which is deployed and enabled on the
- * ETHGlobal preview backend (ethglobal-composer.li.quest) — the backend the
- * runner auto-targets for staged examples — so it runs end-to-end there. It
- * remains gated on the default production backend, where `aave.getHealthFactor`
- * is in the `DISABLED_COMPOSE_OPS` set and submitting the request fails at op
- * resolution. The example builds valid Flow JSON either way.
+ * NOTE: currently disabled end-to-end. `aave.getHealthFactor` is in the
+ * default `DISABLED_COMPOSE_OPS` set on zap-backend because the EXPLODE
+ * opcode is not yet supported on-chain. The example still builds a valid
+ * Flow JSON (and its spec passes), but submitting the request to a backend
+ * with default config will fail at op resolution. Re-enable by unsetting
+ * `aave.getHealthFactor` in the backend's `DISABLED_COMPOSE_OPS` once
+ * contracts ship EXPLODE.
  *
  * Builds a minimal compose flow that:
  * - StaticCalls `IPool.getUserAccountData(user)` on Aave v3 (Base)
@@ -30,9 +31,8 @@ export interface AaveHealthFactorExplodeInput {
  * - Asserts `healthFactor >= 1.0 WAD` via `core.numericInvariant`
  *
  * The signer must hold an Aave v3 position on the target chain so HF > 0.
- * Uses the default `strict` simulation policy: if the `healthFactor >= 1.0 WAD`
- * invariant fails in simulation, the backend returns HTTP 422 and the SDK
- * throws — no calldata is returned.
+ * Uses `allow-revert` so the compiled calldata is returned even if the
+ * assertion would fail — handy for tracing on a fork.
  */
 export const buildAaveHealthFactorExplode = ({
   signer,
@@ -61,9 +61,9 @@ export const buildAaveHealthFactorExplode = ({
 
   const flow = builder.build();
   const request = sdk.request(flow, {
-    simulationPolicy: 'strict',
     signer,
     inputs: {},
+    simulationPolicy: 'strict',
   });
 
   return { flow, request };
