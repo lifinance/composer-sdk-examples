@@ -78,7 +78,9 @@ LIFI_API_KEY=your-key npm run example swap-zap
 
 A few example sources are not wired into the runner and serve as copy-pasteable
 references only: `swapWithFee.ts` (integrator fee), `aaveClaimRewards.ts` (claim
-AAVE rewards), and `buildClaimRewards` in `callContract.ts` (resource-free claim).
+AAVE rewards), `buildClaimRewards` in `callContract.ts` (resource-free claim),
+`emitCustomEvent.ts` (custom on-chain event via `core.emitEvent2`), and
+`invariantChecks.ts` (`invariant.gte` / `invariant.allowanceAtLeast` guards).
 
 ### Staged examples (flashloan / lending / debt migration)
 

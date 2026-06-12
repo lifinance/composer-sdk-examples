@@ -11,8 +11,8 @@
     "typecheck": "tsc --noEmit"
   },
   "dependencies": {
-    "@lifi/compose-spec": "0.2.0-staging.4",
-    "@lifi/composer-sdk": "0.2.0-staging.4",
+    "@lifi/compose-spec": "0.2.0-staging.5",
+    "@lifi/composer-sdk": "0.2.0-staging.5",
     "boxen": "^8.0.1",
     "chalk": "^5.6.2",
     "json-colorizer": "^3.0.1"
