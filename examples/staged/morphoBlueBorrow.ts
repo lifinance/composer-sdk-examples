@@ -84,6 +84,10 @@ export const buildMorphoBlueBorrow = ({
     },
     // Sweep the borrowed USDC back to the signer.
     sweepTo: builder.context.sender,
+    // The WETH collateral becomes unpriced Morpho position state (no receipt
+    // token), so the default 500 bps price-impact check reads any safe borrow
+    // (LLTV caps at 86%) as a loss. 0 skips the check.
+    maxPriceImpactBps: 0,
   });
 
   return { flow, request };

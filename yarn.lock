@@ -7,18 +7,18 @@
   resolved "https://registry.npmjs.org/@esbuild/darwin-arm64/-/darwin-arm64-0.28.0.tgz"
   integrity sha512-0T+A9WZm+bZ84nZBtk1ckYsOvyA3x7e2Acj1KdVfV4/2tdG4fzUp91YHx+GArWLtwqp77pBXVCPn2We7Letr0Q==
 
-"@lifi/compose-spec@0.2.0-staging.4":
-  version "0.2.0-staging.4"
-  resolved "https://registry.npmjs.org/@lifi/compose-spec/-/compose-spec-0.2.0-staging.4.tgz"
-  integrity sha512-yuaiNsUdm2s/XiE6MfVkmQha7XaYm7wN2UxqMO5+jyKj6WwCtezeUmhCafeYwvX56PMp06MExtX61qOwFDa9TA==
+"@lifi/compose-spec@0.2.0-staging.5":
+  version "0.2.0-staging.5"
+  resolved "https://registry.npmjs.org/@lifi/compose-spec/-/compose-spec-0.2.0-staging.5.tgz"
+  integrity sha512-YFoFthTDgxpSM7JCsMSCxNoCLa41VlA40JOpuXewzYGFBPtt9wY66IOcmaiDa2TIyJ0eOD9zhsgaIX30Mixecw==
   dependencies:
     effect "^3.21.0"
     zod "^4.1.11"
 
-"@lifi/composer-sdk@0.2.0-staging.4":
-  version "0.2.0-staging.4"
-  resolved "https://registry.npmjs.org/@lifi/composer-sdk/-/composer-sdk-0.2.0-staging.4.tgz"
-  integrity sha512-+PDQR+2udSnV7kvhUXb4/MtBEasVNFiD9rR53gGB64tb+DDbiC6lNs3n5o1svRn1puNs3VEA+Ysbx0e+UHSzZw==
+"@lifi/composer-sdk@0.2.0-staging.5":
+  version "0.2.0-staging.5"
+  resolved "https://registry.npmjs.org/@lifi/composer-sdk/-/composer-sdk-0.2.0-staging.5.tgz"
+  integrity sha512-mv31SNJ06xIb5cGQH2Ii1KY3kqH5/3vauaakLuQSP1R8WT/Vq/6+SFxVPkLH3WOlGwAMO1jMorzZem1Os/XJIA==
   dependencies:
     abitype "^1.2.3"
     effect "^3.21.0"

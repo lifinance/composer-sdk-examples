@@ -2,6 +2,10 @@ import type { ComposeCompileRequest, Flow } from '@lifi/compose-spec';
 
 import { createComposeSdk, materialisers, resources } from '@lifi/composer-sdk';
 import type { Address } from '@lifi/composer-sdk';
+import {
+  padForAaveDebtRounding,
+  trimForAaveWithdrawalRounding,
+} from '../aaveRounding.js';
 import { BASE_URL } from '../config.js';
 
 // Base mainnet token addresses.
@@ -80,10 +84,16 @@ export const buildAaveToMorphoDebtMigration = ({
 } => {
   const sdk = createComposeSdk({ baseUrl: BASE_URL });
 
+  // Both flashloan legs absorb Aave's 1-wei scaled-balance skew: the USDC
+  // leg funds a max-mode repay, the WETH leg is covered by a withdrawal.
+  const debtFlashloanAmount = padForAaveDebtRounding(debtAmount);
+  const collateralFlashloanAmount =
+    trimForAaveWithdrawalRounding(collateralAmount);
+
   // Morpho borrow must equal principal + Aave-V3 flashloan fee so the
   // `borrowed` resource exactly settles the USDC flashloan leg.
   const morphoBorrowAmount = (
-    BigInt(debtAmount) + BigInt(debtFlashloanFee)
+    BigInt(debtFlashloanAmount) + BigInt(debtFlashloanFee)
   ).toString() as `${bigint}`;
 
   const builder = sdk.flow(8453, {
@@ -175,11 +185,11 @@ export const buildAaveToMorphoDebtMigration = ({
       }),
       debtFlashloan: materialisers.flashloan({
         providerKind: 'aave-v3',
-        amount: debtAmount,
+        amount: debtFlashloanAmount,
       }),
       collateralFlashloan: materialisers.flashloan({
         providerKind: 'balancer-v2',
-        amount: collateralAmount,
+        amount: collateralFlashloanAmount,
       }),
     },
     // Sweep the Aave borrow proceeds (and any aave.repay residual) to the

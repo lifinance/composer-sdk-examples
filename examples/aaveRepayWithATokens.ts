@@ -1,11 +1,6 @@
 import type { ComposeCompileRequest, Flow } from '@lifi/compose-spec';
 
-import {
-  createComposeSdk,
-  materialisers,
-  preconditions,
-  resources,
-} from '@lifi/composer-sdk';
+import { createComposeSdk, materialisers, resources } from '@lifi/composer-sdk';
 import type { Address } from '@lifi/composer-sdk';
 
 import { BASE_URL } from './config.js';
@@ -13,32 +8,33 @@ import { BASE_URL } from './config.js';
 // Aave v3 contracts on Ethereum mainnet.
 const AAVE_V3_POOL = '0x87870Bca3F3fD6335C3F4ce8392D69350B4fA4E2';
 const USDC = '0xA0b86991c6218b36c1d19D4a2e9Eb0cE3606eB48';
+// Aave v3 aEthUSDC receipt token and variable-debt USDC token.
 const A_ETH_USDC = '0x98C23E9d8f34FEFb1B7BD6a91B7FF122F4e16F5c';
+const VDEBT_USDC = '0x72E95b8931767C79bA4EeE721354d6E99a61D004';
 
 export interface AaveRepayWithATokensInput {
   readonly owner: Address;
-  readonly proxyAddress: Address;
-  readonly expectedATokenBalance: `${bigint}`;
+  /** USDC supplied as collateral, minting the aUSDC burned by the repay (6 dp). */
+  readonly collateralAmount: `${bigint}`;
+  /** USDC borrowed against the collateral, then repaid by this flow (6 dp). */
+  readonly borrowAmount: `${bigint}`;
 }
 
 /**
- * Repay an Aave v3 variable-rate USDC debt by burning aToken collateral
- * already held by the proxy (no fresh asset transfer required).
- *
- * The aTokens are sourced from the proxy's existing balance via the
- * `balanceOf` materialiser. The `erc20Balance` precondition fails fast
- * if the expected aTokens haven't landed on the proxy yet.
+ * Supply USDC to Aave v3, borrow USDC against it, then repay the debt by
+ * burning the supplied aUSDC directly — no fresh asset transfer required.
  *
  * Demonstrates:
- * - `aave.repayWithATokens` with the aToken as the resource input.
- * - `balanceOf` materialiser to consume proxy-held aTokens directly.
- * - `erc20Balance` precondition to guard against silent zero-value repays.
- * - The `residual` port returns any aTokens not burned (when debt < input).
+ * - `lifi.zap` to supply USDC into Aave (USDC → aEthUSDC routing edge)
+ * - `aave.borrow` to mint variable USDC debt against the supplied collateral
+ * - `aave.repayWithATokens` to clear the debt by burning the aUSDC collateral
+ * - `sweepTo` to return the borrowed USDC and the unburned aUSDC to the
+ *   sender once the debt is cleared
  */
 export const buildAaveRepayWithATokens = ({
   owner,
-  proxyAddress,
-  expectedATokenBalance,
+  collateralAmount,
+  borrowAmount,
 }: AaveRepayWithATokensInput): {
   flow: Flow;
   request: ComposeCompileRequest;
@@ -48,12 +44,32 @@ export const buildAaveRepayWithATokens = ({
   const builder = sdk.flow(1, {
     name: 'aave-repay-with-atokens',
     inputs: {
-      aTokenIn: resources.erc20(A_ETH_USDC, 1),
+      collateralIn: resources.erc20(USDC, 1),
     },
   });
 
+  // Supply USDC as collateral (USDC → aEthUSDC); the aUSDC is burned below.
+  const supplyOut = builder.lifi.zap('supply', {
+    bind: { amountIn: builder.inputs.collateralIn },
+    config: { resourceOut: resources.erc20(A_ETH_USDC, 1) },
+  });
+
+  // Borrow USDC against the supplied collateral to open a debt position.
+  builder.aave.borrow('borrow', {
+    bind: {},
+    config: {
+      pool: AAVE_V3_POOL,
+      asset: USDC,
+      variableDebtToken: VDEBT_USDC,
+      amount: borrowAmount,
+    },
+  });
+
+  // Repay the USDC debt by burning the aUSDC collateral directly. The aToken
+  // input exceeds the debt, so Aave clamps the payback to the outstanding
+  // debt exactly — clearing the borrow flag and freeing the rest for the sweep.
   builder.aave.repayWithATokens('repay-atokens', {
-    bind: { aTokenIn: builder.inputs.aTokenIn },
+    bind: { aTokenIn: supplyOut.amountOut },
     config: {
       pool: AAVE_V3_POOL,
       asset: USDC,
@@ -66,15 +82,10 @@ export const buildAaveRepayWithATokens = ({
     simulationPolicy: 'strict',
     signer: owner,
     inputs: {
-      aTokenIn: materialisers.balanceOf({ owner: proxyAddress }),
+      collateralIn: materialisers.directDeposit({ amount: collateralAmount }),
     },
-    preconditions: [
-      preconditions.erc20Balance({
-        wallet: proxyAddress,
-        token: A_ETH_USDC,
-        balance: expectedATokenBalance,
-      }),
-    ],
+    // Once the debt is cleared, sweep the borrowed USDC and the unburned
+    // aUSDC collateral back to the sender.
     sweepTo: builder.context.sender,
   });
 

@@ -273,6 +273,10 @@ export const buildAaveToMorphoDebtMigrationWithSwapExactOut = ({
 
   const flow = builder.build();
 
+  const assumptions: Record<string, bigint> = {
+    'buy-usdc-exact.amountIn': BigInt(morphoBorrowAmount),
+  };
+
   const request = sdk.request(flow, {
     simulationPolicy: 'strict',
     signer: owner,
@@ -297,6 +301,7 @@ export const buildAaveToMorphoDebtMigrationWithSwapExactOut = ({
     // Sweep Aave borrow proceeds, aave.repay's residual, and any EURC over-repay
     // residual from the capped Morpho repay back to the signer.
     sweepTo: builder.context.sender,
+    assumptions,
   });
 
   return { flow, request };
