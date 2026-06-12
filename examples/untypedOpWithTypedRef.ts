@@ -1,25 +1,32 @@
 import type { ComposeCompileRequest, Flow } from '@lifi/compose-spec';
 
-import { createComposeSdk, materialisers, raw, resources } from '@lifi/composer-sdk';
+import { createComposeSdk, raw } from '@lifi/composer-sdk';
 import type { Address } from '@lifi/composer-sdk';
 
 import { BASE_URL } from './config.js';
 
-const USDC = '0xA0b86991c6218b36c1d19D4a2e9Eb0cE3606eB48';
-// Example custom vault that the typed builder doesn't cover yet
-const CUSTOM_VAULT = '0x1111111111111111111111111111111111111111';
+// Real ERC-4626 vault (Steakhouse USDC on Ethereum mainnet) queried through
+// the untyped escape hatch.
+const VAULT = '0xBEEF01735c132Ada46AA9aA4c54623cAA92A64CB';
 
 export interface UntypedOpWithTypedRefInput {
   readonly owner: Address;
 }
 
 /**
- * Insert an untyped operation node for an unsupported operation, then feed
- * its output into typed builder methods using `raw.ref<T>()`.
+ * Insert an untyped operation node, then feed its output into typed builder
+ * methods using `raw.ref<T>()`.
+ *
+ * `untypedOp` is the escape hatch for ops the installed SDK's typed surface
+ * doesn't cover — typically backend ops newer than your SDK version. The op
+ * id is passed as a plain string and its bind/config shapes are not
+ * type-checked, so the backend validates them at compile time instead.
+ *
+ * This example routes a real op (`core.staticCall`) through the untyped path
+ * so the flow compiles end-to-end; the mechanism is identical for any op id.
  *
  * Demonstrates:
- * - `builder.untypedOp()` to add a node the typed API doesn't cover
- *   (e.g. a custom vault query).
+ * - `builder.untypedOp()` to add a node the typed API doesn't cover.
  * - `raw.ref<'uint256'>()` to reference the untyped node's output in a typed
  *   `Bindable<'uint256'>` slot — the explicit type parameter is required
  *   so the compiler verifies the ref is used in a compatible slot.
@@ -35,16 +42,17 @@ export const buildUntypedOpWithTypedRef = ({
 
   const builder = sdk.flow(1, {
     name: 'untyped-op-with-typed-ref',
-    inputs: {
-      amountIn: resources.erc20(USDC, 1),
-    },
+    inputs: {},
   });
 
-  // Insert an untyped node for a custom vault query. untypedOp returns void —
+  // Insert an untyped node querying the vault. untypedOp returns void —
   // the typed builder has no knowledge of this node's outputs.
-  builder.untypedOp('vault-query', 'custom.vaultQuery', {
-    bind: { amount: { $ref: 'input.amountIn' } },
-    config: { target: CUSTOM_VAULT },
+  builder.untypedOp('vault-query', 'core.staticCall', {
+    bind: {},
+    config: {
+      target: VAULT,
+      functionSignature: 'function totalAssets() view returns (uint256)',
+    },
   });
 
   // Use raw.ref to bridge the untyped node's output into a typed operation.
@@ -60,18 +68,16 @@ export const buildUntypedOpWithTypedRef = ({
 
   // Continue with fully typed operations downstream.
   builder.core.assertGte('check-min', {
-    bind: { a: scaled.result, b: builder.inputs.amountIn },
+    bind: { a: scaled.result, b: vaultResult },
   });
 
   const flow = builder.build();
 
+  // No sweepTo: the flow reads state and asserts — it produces no resources.
   const request = sdk.request(flow, {
     simulationPolicy: 'strict',
     signer: owner,
-    inputs: {
-      amountIn: materialisers.directDeposit({ amount: '1000000' }),
-    },
-    sweepTo: builder.context.sender,
+    inputs: {},
   });
 
   return { flow, request };

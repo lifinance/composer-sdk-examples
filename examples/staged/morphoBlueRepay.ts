@@ -21,27 +21,41 @@ const WETH_USDC_MARKET = {
 
 export interface MorphoBlueRepayInput {
   readonly owner: Address;
-  readonly repayAmount: `${bigint}`;
+  /** WETH supplied as collateral for the in-flow borrow (18 dp). */
   readonly collateralAmount: `${bigint}`;
+  /** USDC borrowed against the collateral, then repaid by this flow (6 dp). */
+  readonly borrowAmount: `${bigint}`;
+  /**
+   * USDC deposited to repay the debt (6 dp). Must exceed `borrowAmount`:
+   * Morpho's share rounding can leave the debt a wei above the borrowed
+   * amount, so the `max`-mode repay needs a little headroom. The leftover
+   * surfaces on the `residual` port.
+   */
+  readonly repayAmount: `${bigint}`;
 }
 
 /**
- * Close a Morpho Blue WETH/USDC position on Base:
+ * Open and close a Morpho Blue WETH/USDC position on Base in one flow —
+ * a self-contained supplyCollateral → borrow → repay → withdrawCollateral
+ * round trip that creates the debt it retires.
  *
- * - User direct-deposits USDC (slightly over-funded to exercise the residual
- *   port).
- * - `morphoBlue.repay` with `mode: 'max'` reads the proxy's current
- *   `borrowShares` via a precursor `Morpho.position` static call and passes
- *   the share count back into `repay` to retire the debt to the wei. Any
- *   unused USDC surfaces on the `residual` Resource port.
- * - `morphoBlue.withdrawCollateral` pulls the freed WETH back to the signer's
- *   wallet.
- * - The flow sweeps both the freed WETH and the USDC residual to the signer.
+ * Demonstrates:
+ * - `morphoBlue.supplyCollateral` to post WETH (collateral is internal
+ *   position state — no receipt token).
+ * - `morphoBlue.borrow` to mint USDC debt against it.
+ * - `morphoBlue.repay` with `mode: 'max'`, which reads the proxy's current
+ *   `borrowShares` on-chain and repays in shares mode to retire the debt to
+ *   the wei. Unused USDC surfaces on the `residual` Resource port.
+ * - `morphoBlue.withdrawCollateral` to pull the freed WETH once the debt
+ *   is cleared.
+ * - `sweepTo` to return the borrowed USDC, the repay residual, and the
+ *   freed WETH to the signer.
  */
 export const buildMorphoBlueRepay = ({
   owner,
-  repayAmount,
   collateralAmount,
+  borrowAmount,
+  repayAmount,
 }: MorphoBlueRepayInput): {
   flow: Flow;
   request: ComposeCompileRequest;
@@ -51,13 +65,38 @@ export const buildMorphoBlueRepay = ({
   const builder = sdk.flow(8453, {
     name: 'morpho-blue-repay-usdc-withdraw-weth',
     inputs: {
-      assetIn: resources.erc20(BASE_USDC, 8453),
+      collateralIn: resources.erc20(BASE_WETH, 8453),
+      repayIn: resources.erc20(BASE_USDC, 8453),
     },
   });
 
+  // Post WETH collateral so the proxy can open the debt it will repay.
+  builder.morphoBlue.supplyCollateral('supply-collateral', {
+    bind: {
+      assetIn: builder.inputs.collateralIn,
+    },
+    config: {
+      marketParams: WETH_USDC_MARKET,
+      mode: 'exact',
+    },
+  });
+
+  // Borrow USDC against the collateral; the borrowed USDC stays on the
+  // proxy as a terminal resource and is swept back to the signer.
+  builder.morphoBlue.borrow('borrow', {
+    bind: {},
+    config: {
+      marketParams: WETH_USDC_MARKET,
+      amount: borrowAmount,
+    },
+  });
+
+  // Retire the just-opened debt from the deposited USDC. mode 'max' reads
+  // the live borrowShares and repays in shares mode, clearing the debt to
+  // the wei; the unused USDC surfaces on the `residual` port.
   builder.morphoBlue.repay('repay', {
     bind: {
-      assetIn: builder.inputs.assetIn,
+      assetIn: builder.inputs.repayIn,
       onBehalfOf: builder.context.executionAddress,
     },
     config: {
@@ -66,8 +105,8 @@ export const buildMorphoBlueRepay = ({
     },
   });
 
-  // The withdrawn WETH lands on the proxy; the request-level `sweepTo`
-  // pushes it (and the USDC `residual` from the repay) to the signer.
+  // The debt is cleared, so the full collateral can be withdrawn. The freed
+  // WETH lands on the proxy and is swept to the signer.
   builder.morphoBlue.withdrawCollateral('withdraw-collateral', {
     bind: {},
     config: {
@@ -82,9 +121,11 @@ export const buildMorphoBlueRepay = ({
     simulationPolicy: 'strict',
     signer: owner,
     inputs: {
-      assetIn: materialisers.directDeposit({ amount: repayAmount }),
+      collateralIn: materialisers.directDeposit({ amount: collateralAmount }),
+      repayIn: materialisers.directDeposit({ amount: repayAmount }),
     },
-    // Sweep freed WETH and the USDC residual back to the signer.
+    // Sweep the borrowed USDC, the repay residual, and the freed WETH back
+    // to the signer.
     sweepTo: builder.context.sender,
   });
 

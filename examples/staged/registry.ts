@@ -25,7 +25,8 @@ export const STAGED_EXAMPLES: Record<string, () => ComposeCompileRequest> = {
     buildAaveBorrow({
       owner: OWNER,
       recipient: RECIPIENT,
-      amount: '1000000000',
+      collateralAmount: '1000000000',
+      borrowAmount: '500000000',
     }).request,
   'aave-hf-explode': () =>
     buildAaveHealthFactorExplode({ signer: OWNER }).request,
@@ -33,13 +34,14 @@ export const STAGED_EXAMPLES: Record<string, () => ComposeCompileRequest> = {
     buildMorphoBlueBorrow({
       owner: OWNER,
       collateralAmount: '1000000000000000000',
-      borrowAmount: '1500000000',
+      borrowAmount: '1200000000',
     }).request,
   'morpho-repay': () =>
     buildMorphoBlueRepay({
       owner: OWNER,
-      repayAmount: '1505000000',
       collateralAmount: '1000000000000000000',
+      borrowAmount: '500000000',
+      repayAmount: '501000000',
     }).request,
   'debt-rebalance': () =>
     buildAaveDebtRebalanceExactOut({
@@ -52,8 +54,8 @@ export const STAGED_EXAMPLES: Record<string, () => ComposeCompileRequest> = {
     buildAaveToMorphoDebtMigrationWithSwapExactOut({
       owner: OWNER,
       collateralAmount: '1000000000000000000',
-      debtAmount: '2000000000',
-      morphoBorrowAmount: '1950000000',
+      debtAmount: '1000000000',
+      morphoBorrowAmount: '975000000',
     }).request,
   'flashloan-repay': () =>
     buildTrivialFlashloanRepay({

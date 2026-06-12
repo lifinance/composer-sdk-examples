@@ -70,6 +70,10 @@ export const buildTrivialFlashloanRepay = ({
       }),
       feeTopUp: materialisers.directDeposit({ amount: fee }),
     },
+    // The smoke flow returns the full principal + fee to the adapter and
+    // produces no user output, so the guard sees the fee top-up as 100%
+    // loss. 0 skips the check; the user's real cost is only the provider fee.
+    maxPriceImpactBps: 0,
   });
 
   return { flow, request };
