@@ -9,7 +9,7 @@ import {
 } from '@lifi/composer-sdk';
 import type { Address } from '@lifi/composer-sdk';
 
-import { BASE_URL } from './config.js';
+import { API_KEY, BASE_URL } from './config.js';
 
 const USDC = '0xA0b86991c6218b36c1d19D4a2e9Eb0cE3606eB48';
 // Aave v3 aEthUSDC receipt token on Ethereum mainnet
@@ -45,7 +45,7 @@ export const buildDepositFromProxy = ({
   flow: Flow;
   request: ComposeCompileRequest;
 } => {
-  const sdk = createComposeSdk({ baseUrl: BASE_URL });
+  const sdk = createComposeSdk({ baseUrl: BASE_URL, apiKey: API_KEY });
 
   const builder = sdk.flow(1, {
     name: 'deposit-from-proxy',
@@ -69,7 +69,6 @@ export const buildDepositFromProxy = ({
   // The precondition guarantees at least `expectedAmount` is present —
   // without it, a delayed bridge would cause a silent zero-value deposit.
   const request = sdk.request(flow, {
-    simulationPolicy: 'strict',
     signer: owner,
     inputs: {
       amountIn: materialisers.balanceOf({ owner: proxyAddress }),

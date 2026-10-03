@@ -3,7 +3,7 @@ import type { ComposeCompileRequest, Flow } from '@lifi/compose-spec';
 import { createComposeSdk } from '@lifi/composer-sdk';
 import type { Address } from '@lifi/composer-sdk';
 
-import { BASE_URL } from './config.js';
+import { API_KEY, BASE_URL } from './config.js';
 
 // Example ERC-4626 vault address (Steakhouse USDC on Ethereum mainnet)
 const VAULT = '0xBEEF01735c132Ada46AA9aA4c54623cAA92A64CB';
@@ -33,7 +33,7 @@ export const buildEmitCustomEvent = ({
   flow: Flow;
   request: ComposeCompileRequest;
 } => {
-  const sdk = createComposeSdk({ baseUrl: BASE_URL });
+  const sdk = createComposeSdk({ baseUrl: BASE_URL, apiKey: API_KEY });
 
   const builder = sdk.flow(1, {
     name: 'emit-custom-event',

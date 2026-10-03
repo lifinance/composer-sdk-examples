@@ -7,7 +7,7 @@ import {
   resources,
 } from '@lifi/composer-sdk';
 
-import { BASE_URL, OWNER } from './config.js';
+import { API_KEY, BASE_URL, OWNER } from './config.js';
 const USDC = '0xA0b86991c6218b36c1d19D4a2e9Eb0cE3606eB48';
 // Aave aEthUSDC receipt token on Ethereum mainnet
 const A_ETH_USDC = '0x98C23E9d8f34FEFb1B7BD6a91B7FF122F4e16F5c';
@@ -24,7 +24,7 @@ export const buildLifiZapExample = (): {
   flow: Flow;
   request: ComposeCompileRequest;
 } => {
-  const sdk = createComposeSdk({ baseUrl: BASE_URL });
+  const sdk = createComposeSdk({ baseUrl: BASE_URL, apiKey: API_KEY });
 
   // Declare the flow with a single USDC input on Ethereum mainnet.
   const builder = sdk.flow(1, {
@@ -49,11 +49,14 @@ export const buildLifiZapExample = (): {
   // Build the compile request.
   // directDeposit transfers a fixed amount of USDC into the VM.
   const request = sdk.request(flow, {
-    simulationPolicy: 'strict',
     signer: OWNER,
     inputs: {
       amountIn: materialisers.directDeposit({ amount: '1000000000' }),
     },
+    // This zap's edge keeps `amountOut` inside the execution VM, so sweeping
+    // leftovers back to the sender is safe. Omit `sweepTo` for an edge that
+    // delivers externally (`recipient: 'required'` in discovery): the output
+    // never enters the VM, so a sweep would find nothing to move.
     sweepTo: builder.context.sender,
   });
 

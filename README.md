@@ -4,7 +4,7 @@ Runnable examples for [`@lifi/composer-sdk`](https://www.npmjs.com/package/@lifi
 
 These examples are ported from the SDK's own `src/examples/` directory so they can be run directly, without digging through `node_modules`. Each example builds a `ComposeCompileRequest`; the runner sends it to a live Compose backend and prints the request and result.
 
-Tracks the `@staging` release of `@lifi/composer-sdk` (and its lockstep `@lifi/compose-spec` peer) — see `package.json` for the pinned version.
+Tracks the stable release of `@lifi/composer-sdk` (and its lockstep `@lifi/compose-spec` peer) — see `package.json` for the pinned version. The staged examples need a `@staging` build (see below).
 
 ## Setup
 
@@ -33,7 +33,7 @@ LIFI_API_KEY=your-key npm run example swap
 cp .env.example .env
 ```
 
-> The public backend requires an API key — expect a `ComposeError: API key is required` until `LIFI_API_KEY` is set.
+> The public backend requires an API key. Without `LIFI_API_KEY`, the runner sends the placeholder `YOUR_API_KEY` and the backend rejects the request.
 
 ## Running an example
 
@@ -69,6 +69,15 @@ Run with no name to see the full list. Available examples:
 | `transfer`          | Transfer a full token balance to a recipient                       |
 | `partial-transfer`  | Transfer a specific amount, keeping the remainder                  |
 | `untyped-ref`       | Mix `untypedOp` with typed handles via `raw.ref`                   |
+| `zap-async`         | Zap USDC into an async Aave position (future output)               |
+| `fly-swap`          | Exit a Pendle PT via `lifi.zap`, then swap all proceeds to WETH with `fly.swap` |
+| `aave-borrow`       | Supply USDC to Aave v3, borrow against it with a health-factor guard |
+| `aave-hf-explode`   | Read the Aave v3 health factor via the EXPLODE opcode; assert ≥ 1.0 WAD |
+| `morpho-borrow`     | Supply WETH collateral to a Morpho Blue market and borrow USDC     |
+| `morpho-repay`      | Open, repay and close a Morpho Blue WETH/USDC position             |
+| `route-exact`       | Wrap 0.1 native ETH into WETH via `sdk.route` (`/compose/route`)   |
+| `route-all`         | Unwrap the whole WETH balance to ETH via `sdk.route`               |
+| `supported-chains`  | List the chains the backend supports, and guard on them            |
 
 Example:
 
@@ -79,22 +88,24 @@ LIFI_API_KEY=your-key npm run example swap-zap
 A few example sources are not wired into the runner and serve as copy-pasteable
 references only: `swapWithFee.ts` (integrator fee), `aaveClaimRewards.ts` (claim
 AAVE rewards), `buildClaimRewards` in `callContract.ts` (resource-free claim),
-`emitCustomEvent.ts` (custom on-chain event via `core.emitEvent2`), and
-`invariantChecks.ts` (`invariant.gte` / `invariant.allowanceAtLeast` guards).
+`emitCustomEvent.ts` (custom on-chain event via `core.emitEvent2`),
+`invariantChecks.ts` (`invariant.gte` / `invariant.allowanceAtLeast` guards),
+`simulateCompiledSwap.ts` and `simulateRawTransaction.ts` (`sdk.simulate`).
 
-### Staged examples (flashloan / lending / debt migration)
+`aave-hf-explode` needs the signer to hold an Aave v3 position on Base so the
+health factor resolves.
 
-These live under `examples/staged/` and demonstrate flashloan-powered debt
-migration and lending flows. They use staged ops that are published on the
-`@staging` dist-tag but not yet enabled on the default production backend, so
-run them with the `--staged` flag against the preview backend:
+### Staged examples (flashloan / debt migration / continuation)
+
+These live under `examples/staged/`. They use staged ops that are published on
+the `@staging` dist-tag but not yet enabled on the default production backend.
+Install the staging build, then run them with the `--staged` flag against the
+preview backend:
 
 ```bash
+npm install @lifi/composer-sdk@staging @lifi/compose-spec@staging
 COMPOSER_BASE_URL=https://ethglobal-composer.li.quest npm run example -- --staged <name>
 ```
-
-(`aave-hf-explode` additionally needs the signer to hold an Aave v3 position on
-Base so the health factor resolves.)
 
 | Name                            | What it does                                                          |
 | ------------------------------- | --------------------------------------------------------------------- |
@@ -103,10 +114,7 @@ Base so the health factor resolves.)
 | `debt-migration-swap-exact-out` | Debt migration using an exact-output (`paraswap.buy`) debt swap       |
 | `debt-rebalance`                | Debt-swap an Aave position into a new debt token, same protocol        |
 | `flashloan-repay`               | Borrow + repay round-trip via `lifi.flashloanRepay`                   |
-| `aave-borrow`                   | Borrow against Aave v3 collateral with an on-chain health-factor guard |
-| `morpho-borrow`                 | Open a leveraged borrow position on a Morpho Blue market               |
-| `morpho-repay`                  | Repay a Morpho Blue position and withdraw collateral                   |
-| `aave-hf-explode`               | Decompose Aave health factor via the EXPLODE opcode; assert ≥ 1.0 WAD  |
+| `manual-relay-continuation`     | Two-leg flow settled by a self-serve continuation                     |
 
 ## Project layout
 
@@ -116,7 +124,7 @@ examples/
   config.ts     # shared config (base URL, API key, sample addresses)
   loadEnv.ts    # loads .env (if present) before config is read
   <example>.ts  # one file per example, each exporting a build* function
-  staged/       # flashloan / lending / debt-migration examples + their registry
+  staged/       # flashloan / debt-migration / continuation examples + their registry
 ```
 
 Each example exports a `build*` function that returns `{ flow, request }`. The flow is built with the SDK's typed `FlowBuilder`; the runner compiles the request via `sdk.client.compile`. Read any example file alongside its row in the table above to see the SDK API in use.
@@ -126,6 +134,9 @@ Each example exports a `build*` function that returns `{ flow, request }`. The f
 ```bash
 npm run typecheck
 ```
+
+The type check covers the production examples only. `examples/staged/` is
+excluded, because it needs the `@staging` SDK build.
 
 ## License
 

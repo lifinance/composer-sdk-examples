@@ -2,7 +2,8 @@ import type { ComposeCompileRequest, Flow } from '@lifi/compose-spec';
 
 import { createComposeSdk, materialisers, resources } from '@lifi/composer-sdk';
 import type { Address } from '@lifi/composer-sdk';
-import { BASE_URL } from '../config.js';
+
+import { API_KEY, BASE_URL } from './config.js';
 
 // Morpho Blue WETH/USDC market on Base (chainId 8453).
 const ADAPTIVE_CURVE_IRM_BASE = '0x46415998764C29aB2a25CbeA6254146D50D22687';
@@ -60,7 +61,7 @@ export const buildMorphoBlueRepay = ({
   flow: Flow;
   request: ComposeCompileRequest;
 } => {
-  const sdk = createComposeSdk({ baseUrl: BASE_URL });
+  const sdk = createComposeSdk({ baseUrl: BASE_URL, apiKey: API_KEY });
 
   const builder = sdk.flow(8453, {
     name: 'morpho-blue-repay-usdc-withdraw-weth',
@@ -118,7 +119,6 @@ export const buildMorphoBlueRepay = ({
   const flow = builder.build();
 
   const request = sdk.request(flow, {
-    simulationPolicy: 'strict',
     signer: owner,
     inputs: {
       collateralIn: materialisers.directDeposit({ amount: collateralAmount }),

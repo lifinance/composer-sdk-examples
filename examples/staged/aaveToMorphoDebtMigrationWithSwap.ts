@@ -6,7 +6,7 @@ import {
   padForAaveDebtRounding,
   trimForAaveWithdrawalRounding,
 } from '../aaveRounding.js';
-import { BASE_URL } from '../config.js';
+import { API_KEY, BASE_URL } from '../config.js';
 
 // Base mainnet token addresses.
 const BASE_WETH = '0x4200000000000000000000000000000000000006';
@@ -107,7 +107,7 @@ export const buildAaveToMorphoDebtMigrationWithSwap = ({
   flow: Flow;
   request: ComposeCompileRequest;
 } => {
-  const sdk = createComposeSdk({ baseUrl: BASE_URL });
+  const sdk = createComposeSdk({ baseUrl: BASE_URL, apiKey: API_KEY });
 
   // Both flashloan legs absorb Aave's 1-wei scaled-balance skew: the USDC
   // leg funds a max-mode repay, the WETH leg is covered by a withdrawal.
@@ -208,7 +208,6 @@ export const buildAaveToMorphoDebtMigrationWithSwap = ({
   const flow = builder.build();
 
   const request = sdk.request(flow, {
-    simulationPolicy: 'strict',
     signer: owner,
     inputs: {
       initialCollateral: materialisers.directDeposit({

@@ -2,7 +2,8 @@ import type { ComposeCompileRequest, Flow } from '@lifi/compose-spec';
 
 import { createComposeSdk, guards } from '@lifi/composer-sdk';
 import type { Address } from '@lifi/composer-sdk';
-import { BASE_URL } from '../config.js';
+
+import { API_KEY, BASE_URL } from './config.js';
 
 // Base mainnet Aave v3 Pool.
 const AAVE_V3_POOL = '0xA238Dd80C259a72e81d7e4664a9801593F98d1c5';
@@ -16,14 +17,6 @@ export interface AaveHealthFactorExplodeInput {
 
 /**
  * EXPLODE / DecomposeValue showcase.
- *
- * NOTE: currently disabled end-to-end. `aave.getHealthFactor` is in the
- * default `DISABLED_COMPOSE_OPS` set on zap-backend because the EXPLODE
- * opcode is not yet supported on-chain. The example still builds a valid
- * Flow JSON (and its spec passes), but submitting the request to a backend
- * with default config will fail at op resolution. Re-enable by unsetting
- * `aave.getHealthFactor` in the backend's `DISABLED_COMPOSE_OPS` once
- * contracts ship EXPLODE.
  *
  * Builds a minimal compose flow that:
  * - StaticCalls `IPool.getUserAccountData(user)` on Aave v3 (Base)
@@ -40,7 +33,7 @@ export const buildAaveHealthFactorExplode = ({
   flow: Flow;
   request: ComposeCompileRequest;
 } => {
-  const sdk = createComposeSdk({ baseUrl: BASE_URL });
+  const sdk = createComposeSdk({ baseUrl: BASE_URL, apiKey: API_KEY });
 
   const builder = sdk.flow(8453 /* Base */, {
     name: 'aave-hf-explode-showcase',
@@ -63,7 +56,7 @@ export const buildAaveHealthFactorExplode = ({
   const request = sdk.request(flow, {
     signer,
     inputs: {},
-    simulationPolicy: 'strict',
+    simulationPolicy: 'allow-revert',
   });
 
   return { flow, request };

@@ -3,7 +3,7 @@ import type { ComposeCompileRequest, Flow } from '@lifi/compose-spec';
 import { createComposeSdk, materialisers, resources } from '@lifi/composer-sdk';
 import type { Address } from '@lifi/composer-sdk';
 
-import { BASE_URL } from './config.js';
+import { API_KEY, BASE_URL } from './config.js';
 
 export interface ConsolidateStablesToUsdcInput {
   readonly owner: Address;
@@ -39,7 +39,7 @@ export const buildConsolidateStablesToUsdc = ({
   flow: Flow;
   request: ComposeCompileRequest;
 } => {
-  const sdk = createComposeSdk({ baseUrl: BASE_URL });
+  const sdk = createComposeSdk({ baseUrl: BASE_URL, apiKey: API_KEY });
   const erc20 = (token: Address) => resources.erc20(token, CHAIN_ID);
 
   // Declare the flow with one input per stablecoin on Ethereum mainnet.
@@ -81,7 +81,6 @@ export const buildConsolidateStablesToUsdc = ({
   // Build the compile request.
   // directDeposit materialisers transfer fixed amounts into the VM.
   const request = sdk.request(flow, {
-    simulationPolicy: 'strict',
     signer: owner,
     inputs: {
       stable_usdt: materialisers.directDeposit({ amount: usdtAmount }),
