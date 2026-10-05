@@ -14,6 +14,8 @@ npm install
 
 This pulls in `@lifi/composer-sdk` and its `@lifi/compose-spec` peer dependency (pinned in lockstep), plus `tsx` to run the TypeScript directly.
 
+When copying an example into your own project, install the version pinned in `package.json` (or `@next`), e.g. `npm install @lifi/composer-sdk@0.7.1 @lifi/compose-spec@0.7.1`. The npm `latest` tag can lag behind and may not include every op these examples use.
+
 ## Configuration
 
 The examples read two environment variables (see [`.env.example`](./.env.example)):

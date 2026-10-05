@@ -2,10 +2,10 @@
  * Example harness — builds a request and sends it to a live compose backend.
  *
  * Usage:
- *   COMPOSER_BASE_URL=https://composer.li.quest yarn example <name>
+ *   COMPOSER_BASE_URL=https://composer.li.quest npm run example <name>
  *
  * Pass LIFI_API_KEY to authenticate:
- *   LIFI_API_KEY=your-key COMPOSER_BASE_URL=https://composer.li.quest yarn example <name>
+ *   LIFI_API_KEY=your-key COMPOSER_BASE_URL=https://composer.li.quest npm run example <name>
  *
  * Available examples:
  *   aave-borrow       — supply USDC to Aave v3, borrow against it with a health-factor guard
@@ -254,7 +254,7 @@ const run = async () => {
         name ? `unknown example "${name}"` : 'no example specified'
       }\n` +
         `Valid examples: ${valid}\n` +
-        `Usage: COMPOSER_BASE_URL=https://composer.li.quest yarn example [--staged] <name>`,
+        `Usage: COMPOSER_BASE_URL=https://composer.li.quest npm run example -- [--staged] <name>`,
     );
     process.exit(1);
   }
