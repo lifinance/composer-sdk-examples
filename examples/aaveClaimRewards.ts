@@ -3,7 +3,7 @@ import type { ComposeCompileRequest, Flow } from '@lifi/compose-spec';
 import { createComposeSdk } from '@lifi/composer-sdk';
 import type { Address } from '@lifi/composer-sdk';
 
-import { BASE_URL } from './config.js';
+import { API_KEY, BASE_URL } from './config.js';
 
 // Aave v3 incentives contracts on Ethereum mainnet.
 const REWARDS_CONTROLLER = '0x8164Cc65827dcFe994AB23944CBC90e0aa80bFcb';
@@ -37,7 +37,7 @@ export const buildAaveClaimRewards = ({
   flow: Flow;
   request: ComposeCompileRequest;
 } => {
-  const sdk = createComposeSdk({ baseUrl: BASE_URL });
+  const sdk = createComposeSdk({ baseUrl: BASE_URL, apiKey: API_KEY });
 
   const builder = sdk.flow(1, {
     name: 'aave-claim-rewards',
@@ -69,7 +69,6 @@ export const buildAaveClaimRewards = ({
   const flow = builder.build();
 
   const request = sdk.request(flow, {
-    simulationPolicy: 'strict',
     signer: owner,
     inputs: {
       recipient,

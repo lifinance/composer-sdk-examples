@@ -2,7 +2,7 @@ import type { ComposeCompileRequest, Flow } from '@lifi/compose-spec';
 
 import { createComposeSdk, materialisers, resources } from '@lifi/composer-sdk';
 import type { Address } from '@lifi/composer-sdk';
-import { BASE_URL } from '../config.js';
+import { API_KEY, BASE_URL } from '../config.js';
 
 // Base mainnet token addresses.
 const BASE_WETH = '0x4200000000000000000000000000000000000006';
@@ -130,14 +130,14 @@ export const buildAaveDebtRebalanceExactOut = ({
   debtAmount,
   newDebtBorrowAmount,
   maxSlippageBps = DEFAULT_MAX_SLIPPAGE_BPS,
-  partner,
-  partnerAddress,
-  partnerFeeBps,
+  // The rest is the optional partner-fee fields. Spreading them forwards only
+  // the fields the caller set, so no fee policy is baked in by default.
+  ...partnerFee
 }: AaveDebtRebalanceExactOutInput): {
   flow: Flow;
   request: ComposeCompileRequest;
 } => {
-  const sdk = createComposeSdk({ baseUrl: BASE_URL });
+  const sdk = createComposeSdk({ baseUrl: BASE_URL, apiKey: API_KEY });
 
   // The USDC the BUY must produce: the flashloan principal plus the Aave V3
   // flashloan premium. This is exactly what settles the debt flashloan leg.
@@ -221,9 +221,7 @@ export const buildAaveDebtRebalanceExactOut = ({
       srcDecimals: EURC_DECIMALS,
       destDecimals: USDC_DECIMALS,
       maxSlippageBps,
-      ...(partner !== undefined ? { partner } : {}),
-      ...(partnerAddress !== undefined ? { partnerAddress } : {}),
-      ...(partnerFeeBps !== undefined ? { partnerFeeBps } : {}),
+      ...partnerFee,
     },
   });
 
@@ -281,7 +279,6 @@ export const buildAaveDebtRebalanceExactOut = ({
   const flow = builder.build();
 
   const request = sdk.request(flow, {
-    simulationPolicy: 'strict',
     signer: owner,
     inputs: {
       initialCollateral: materialisers.directDeposit({

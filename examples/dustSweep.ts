@@ -2,7 +2,7 @@ import type { ComposeCompileRequest, Flow } from '@lifi/compose-spec';
 
 import { createComposeSdk, materialisers, resources } from '@lifi/composer-sdk';
 
-import { BASE_URL, OWNER } from './config.js';
+import { API_KEY, BASE_URL, OWNER } from './config.js';
 const USDC = '0xA0b86991c6218b36c1d19D4a2e9Eb0cE3606eB48';
 const USDT = '0xdAC17F958D2ee523a2206206994597C13D831ec7';
 
@@ -23,7 +23,7 @@ export const buildDustSweepExample = (): {
   flow: Flow;
   request: ComposeCompileRequest;
 } => {
-  const sdk = createComposeSdk({ baseUrl: BASE_URL });
+  const sdk = createComposeSdk({ baseUrl: BASE_URL, apiKey: API_KEY });
 
   const builder = sdk.flow(1, {
     name: 'dust-sweep',
@@ -55,7 +55,6 @@ export const buildDustSweepExample = (): {
   // `sweepTo` ensures the unused 20% USDC is transferred back to the
   // sender rather than being left stranded on the proxy contract.
   const request = sdk.request(flow, {
-    simulationPolicy: 'strict',
     signer: OWNER,
     inputs: {
       amountIn: materialisers.directDeposit({ amount: '10000000' }),

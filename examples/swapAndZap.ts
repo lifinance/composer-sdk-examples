@@ -7,7 +7,7 @@ import {
   resources,
 } from '@lifi/composer-sdk';
 
-import { BASE_URL, OWNER } from './config.js';
+import { API_KEY, BASE_URL, OWNER } from './config.js';
 const WETH = '0xC02aaA39b223FE8D0A0e5C4F27eAD9083C756Cc2';
 const USDC = '0xA0b86991c6218b36c1d19D4a2e9Eb0cE3606eB48';
 // Aave aEthUSDC receipt token on Ethereum mainnet
@@ -20,12 +20,19 @@ const A_ETH_USDC = '0x98C23E9d8f34FEFb1B7BD6a91B7FF122F4e16F5c';
  * - Chaining a swap into a zap by threading output handles
  * - The swap's amountOut feeds directly into the zap's amountIn
  * - Slippage guard on the zap output (swap output has providesMinimum)
+ *
+ * Reading the result of compiling this flow:
+ * - `result.outputs['swap.amountOut']` has `role: 'consumed'` (the zap consumes
+ *   it); `consumedBy` is `'zap'` and `amount.minimum` is the swap floor the
+ *   router enforces on the intermediate USDC.
+ * - `result.outputs['zap.amountOut']` has `role: 'terminal'`; its
+ *   `amount.minimum` carries the guard floor set above.
  */
 export const buildSwapAndZapExample = (): {
   flow: Flow;
   request: ComposeCompileRequest;
 } => {
-  const sdk = createComposeSdk({ baseUrl: BASE_URL });
+  const sdk = createComposeSdk({ baseUrl: BASE_URL, apiKey: API_KEY });
 
   // Declare the flow with a single WETH input on Ethereum mainnet.
   const builder = sdk.flow(1, {
@@ -59,7 +66,6 @@ export const buildSwapAndZapExample = (): {
   // Build the compile request.
   // directDeposit transfers a fixed amount of WETH into the VM.
   const request = sdk.request(flow, {
-    simulationPolicy: 'strict',
     signer: OWNER,
     inputs: {
       amountIn: materialisers.directDeposit({

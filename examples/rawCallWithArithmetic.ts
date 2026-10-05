@@ -3,7 +3,7 @@ import type { ComposeCompileRequest, Flow } from '@lifi/compose-spec';
 import { createComposeSdk } from '@lifi/composer-sdk';
 import type { Address } from '@lifi/composer-sdk';
 
-import { BASE_URL } from './config.js';
+import { API_KEY, BASE_URL } from './config.js';
 
 // Example contract address for a non-standard oracle
 const ORACLE = '0x5f4eC3Df9cbd43714FE2740f5E3616155c5b8419';
@@ -27,7 +27,7 @@ export const buildRawCallWithArithmetic = ({
   flow: Flow;
   request: ComposeCompileRequest;
 } => {
-  const sdk = createComposeSdk({ baseUrl: BASE_URL });
+  const sdk = createComposeSdk({ baseUrl: BASE_URL, apiKey: API_KEY });
 
   const builder = sdk.flow(1, {
     name: 'raw-call-with-arithmetic',
@@ -70,7 +70,6 @@ export const buildRawCallWithArithmetic = ({
   const flow = builder.build();
 
   const request = sdk.request(flow, {
-    simulationPolicy: 'strict',
     signer: owner,
     inputs: {},
   });

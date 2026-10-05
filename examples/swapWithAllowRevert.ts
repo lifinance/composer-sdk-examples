@@ -2,7 +2,7 @@ import type { ComposeCompileRequest, Flow } from '@lifi/compose-spec';
 
 import { createComposeSdk, materialisers, resources } from '@lifi/composer-sdk';
 
-import { BASE_URL, OWNER } from './config.js';
+import { API_KEY, BASE_URL, OWNER } from './config.js';
 const WETH = '0xC02aaA39b223FE8D0A0e5C4F27eAD9083C756Cc2';
 const USDC = '0xA0b86991c6218b36c1d19D4a2e9Eb0cE3606eB48';
 
@@ -25,7 +25,7 @@ export const buildSwapWithAllowRevertExample = (): {
   flow: Flow;
   request: ComposeCompileRequest;
 } => {
-  const sdk = createComposeSdk({ baseUrl: BASE_URL });
+  const sdk = createComposeSdk({ baseUrl: BASE_URL, apiKey: API_KEY });
 
   const builder = sdk.flow(1, {
     name: 'swap-weth-to-usdc-allow-revert',
@@ -70,7 +70,7 @@ export const buildSwapWithAllowRevertExample = (): {
  * but demonstrates the branching pattern callers should use.
  */
 export const handleCompileResult = async (): Promise<void> => {
-  const sdk = createComposeSdk({ baseUrl: BASE_URL });
+  const sdk = createComposeSdk({ baseUrl: BASE_URL, apiKey: API_KEY });
 
   const builder = sdk.flow(1, {
     inputs: { amountIn: resources.erc20(WETH, 1) },
@@ -91,17 +91,27 @@ export const handleCompileResult = async (): Promise<void> => {
 
   if (result.status === 'success') {
     // Full success — transactionRequest includes gasLimit.
-    const { transactionRequest, userProxy, producedResources } = result;
+    const { transactionRequest, userProxy, outputs } = result;
     void transactionRequest;
     void userProxy;
-    void producedResources;
+    // Every linear resource output port appears in `outputs`, keyed
+    // `<nodeId>.<port>`. The swap's terminal output carries the amount.
+    const swapOut = outputs['swap.amountOut'];
+    void swapOut?.amount.estimate?.value; // simulated estimate on a 200
+    void swapOut?.amount.minimum?.value; // enforced floor, absent if none known
     return;
   }
 
   // Partial result — simulation reverted but a transaction is still available.
   // transactionRequest omits gasLimit; the caller must estimate gas themselves.
-  const { transactionRequest, simulationRevert, error } = result;
+  const { transactionRequest, outputs, simulationRevert, error } = result;
   void transactionRequest;
+
+  // Nothing was measured, so the estimate is a quote and the minimum is
+  // op-sourced (or absent) rather than a guard floor.
+  const swapOut = outputs['swap.amountOut'];
+  void swapOut?.amount.estimate?.value; // quoted on a 206
+  void swapOut?.amount.minimum?.value; // op/declared floor, absent if none
 
   // Inspect the revert reason.
   void simulationRevert.code;

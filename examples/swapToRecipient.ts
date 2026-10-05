@@ -3,7 +3,7 @@ import type { ComposeCompileRequest, Flow } from '@lifi/compose-spec';
 import { createComposeSdk, materialisers, resources } from '@lifi/composer-sdk';
 import type { Address } from '@lifi/composer-sdk';
 
-import { BASE_URL } from './config.js';
+import { API_KEY, BASE_URL } from './config.js';
 
 const WETH = '0xC02aaA39b223FE8D0A0e5C4F27eAD9083C756Cc2';
 const USDC = '0xA0b86991c6218b36c1d19D4a2e9Eb0cE3606eB48';
@@ -35,7 +35,7 @@ export const buildSwapToRecipient = ({
   flow: Flow;
   request: ComposeCompileRequest;
 } => {
-  const sdk = createComposeSdk({ baseUrl: BASE_URL });
+  const sdk = createComposeSdk({ baseUrl: BASE_URL, apiKey: API_KEY });
 
   // Declare the flow on Ethereum mainnet with two token inputs and one address input.
   const builder = sdk.flow(1, {
@@ -77,7 +77,6 @@ export const buildSwapToRecipient = ({
   // The handle input passes the recipient address as a plain string.
   // sweepTo delivers all terminal resources (the merged USDC) to the recipient.
   const request = sdk.request(flow, {
-    simulationPolicy: 'strict',
     signer: owner,
     inputs: {
       wethIn: materialisers.directDeposit({ amount: wethAmount }),

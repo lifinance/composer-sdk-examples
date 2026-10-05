@@ -10,39 +10,14 @@ import type { ComposeCompileRequest } from '@lifi/compose-spec';
 
 import { OWNER, RECIPIENT } from '../config.js';
 
-import { buildAaveBorrow } from './aaveBorrow.js';
 import { buildAaveDebtRebalanceExactOut } from './aaveDebtRebalanceExactOut.js';
-import { buildAaveHealthFactorExplode } from './aaveHealthFactorExplode.js';
 import { buildAaveToMorphoDebtMigration } from './aaveToMorphoDebtMigration.js';
 import { buildAaveToMorphoDebtMigrationWithSwap } from './aaveToMorphoDebtMigrationWithSwap.js';
 import { buildAaveToMorphoDebtMigrationWithSwapExactOut } from './aaveToMorphoDebtMigrationWithSwapExactOut.js';
 import { buildTrivialFlashloanRepay } from './flashloanRepay.js';
-import { buildMorphoBlueBorrow } from './morphoBlueBorrow.js';
-import { buildMorphoBlueRepay } from './morphoBlueRepay.js';
+import { buildManualRelayContinuation } from './manualRelayContinuation.js';
 
 export const STAGED_EXAMPLES: Record<string, () => ComposeCompileRequest> = {
-  'aave-borrow': () =>
-    buildAaveBorrow({
-      owner: OWNER,
-      recipient: RECIPIENT,
-      collateralAmount: '1000000000',
-      borrowAmount: '500000000',
-    }).request,
-  'aave-hf-explode': () =>
-    buildAaveHealthFactorExplode({ signer: OWNER }).request,
-  'morpho-borrow': () =>
-    buildMorphoBlueBorrow({
-      owner: OWNER,
-      collateralAmount: '1000000000000000000',
-      borrowAmount: '1200000000',
-    }).request,
-  'morpho-repay': () =>
-    buildMorphoBlueRepay({
-      owner: OWNER,
-      collateralAmount: '1000000000000000000',
-      borrowAmount: '500000000',
-      repayAmount: '501000000',
-    }).request,
   'debt-rebalance': () =>
     buildAaveDebtRebalanceExactOut({
       owner: OWNER,
@@ -76,5 +51,13 @@ export const STAGED_EXAMPLES: Record<string, () => ComposeCompileRequest> = {
       collateralAmount: '1000000000000000000',
       debtAmount: '1000000000',
       morphoBorrowAmount: '1100000000',
+    }).request,
+  'manual-relay-continuation': () =>
+    buildManualRelayContinuation({
+      owner: OWNER,
+      recipient: RECIPIENT,
+      amount: '1000000',
+      minAmountOut: '990000',
+      expiresAtMs: 1900000000000,
     }).request,
 };

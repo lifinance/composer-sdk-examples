@@ -3,7 +3,7 @@ import type { ComposeCompileRequest, Flow } from '@lifi/compose-spec';
 import { createComposeSdk, materialisers, resources } from '@lifi/composer-sdk';
 import type { Address } from '@lifi/composer-sdk';
 
-import { BASE_URL } from './config.js';
+import { API_KEY, BASE_URL } from './config.js';
 
 // Example ERC-4626 vault address (Steakhouse USDC on Ethereum mainnet)
 const VAULT = '0xBEEF01735c132Ada46AA9aA4c54623cAA92A64CB';
@@ -31,7 +31,7 @@ export const buildRedeemFromVault = ({
   flow: Flow;
   request: ComposeCompileRequest;
 } => {
-  const sdk = createComposeSdk({ baseUrl: BASE_URL });
+  const sdk = createComposeSdk({ baseUrl: BASE_URL, apiKey: API_KEY });
 
   const builder = sdk.flow(1, {
     name: 'redeem-from-vault',
@@ -74,7 +74,6 @@ export const buildRedeemFromVault = ({
   const flow = builder.build();
 
   const request = sdk.request(flow, {
-    simulationPolicy: 'strict',
     signer: owner,
     inputs: {
       shares: materialisers.directDeposit({ amount }),
@@ -104,7 +103,7 @@ export const buildClaimRewards = ({
   const REWARDS_CONTRACT = '0x1111111111111111111111111111111111111111';
   const REWARD_TOKEN = '0x2222222222222222222222222222222222222222';
 
-  const sdk = createComposeSdk({ baseUrl: BASE_URL });
+  const sdk = createComposeSdk({ baseUrl: BASE_URL, apiKey: API_KEY });
 
   const builder = sdk.flow(1, {
     name: 'claim-rewards',
@@ -132,7 +131,6 @@ export const buildClaimRewards = ({
   const flow = builder.build();
 
   const request = sdk.request(flow, {
-    simulationPolicy: 'strict',
     signer: owner,
     inputs: {},
     sweepTo: builder.context.sender,
@@ -156,7 +154,7 @@ export const buildWrapEth = ({
   flow: Flow;
   request: ComposeCompileRequest;
 } => {
-  const sdk = createComposeSdk({ baseUrl: BASE_URL });
+  const sdk = createComposeSdk({ baseUrl: BASE_URL, apiKey: API_KEY });
 
   const builder = sdk.flow(1, {
     name: 'wrap-eth',
@@ -190,7 +188,6 @@ export const buildWrapEth = ({
   const flow = builder.build();
 
   const request = sdk.request(flow, {
-    simulationPolicy: 'strict',
     signer: owner,
     inputs: {
       ethIn: materialisers.directDeposit({ amount }),
