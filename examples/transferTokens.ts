@@ -17,11 +17,9 @@ export interface TransferTokensInput {
  * Transfer ERC-20 tokens from the proxy to an arbitrary recipient.
  *
  * Demonstrates:
- * - `core.transfer` to move tokens to a recipient address
+ * - `core.transfer` to move the whole input to a recipient address
  * - Binding a scalar handle input (`recipient`) alongside a resource input
- * - Optionally specifying a partial transfer amount via `config.amount`
- *   (omit to transfer the full balance)
- * - The `transferred` and `remainder` output ports
+ * - The `transferred` output port
  */
 export const buildTransferTokens = ({
   owner,
@@ -41,8 +39,8 @@ export const buildTransferTokens = ({
     },
   });
 
-  // Transfer the full input amount to the recipient.
-  // The `transferred` port tracks what was sent; `remainder` tracks what's left.
+  // Transfer the full input amount to the recipient. The `transferred` port
+  // tracks what the recipient received.
   builder.core.transfer('send', {
     bind: {
       amount: builder.inputs.amountIn,
@@ -65,11 +63,12 @@ export const buildTransferTokens = ({
 };
 
 /**
- * Transfer a partial amount, keeping the remainder in the proxy.
+ * Transfer a fixed amount and swap the rest.
  *
  * Demonstrates:
- * - `config.amount` to transfer a specific sub-amount
- * - Using the `remainder` output port for subsequent operations
+ * - `core.splitAt` to carve a fixed sub-amount (`head`) out of a resource,
+ *   leaving the rest in `tail`
+ * - Sending `head` with `core.transfer` and using `tail` in a later operation
  */
 export const buildPartialTransfer = ({
   owner,
@@ -89,19 +88,24 @@ export const buildPartialTransfer = ({
     },
   });
 
-  // Transfer a fixed 0.5 USDC (500000 base units at 6 decimals);
-  // the remainder stays on the proxy for subsequent operations.
-  const out = builder.core.transfer('send-half', {
-    bind: {
-      amount: builder.inputs.amountIn,
-      recipient: builder.inputs.recipient,
-    },
+  // Carve out a fixed 0.5 USDC (500000 base units at 6 decimals). Below that
+  // amount, `head` takes the whole input and `tail` is 0.
+  const { head, tail } = builder.core.splitAt('split', {
+    bind: { source: builder.inputs.amountIn },
     config: { amount: '500000' },
   });
 
-  // Use the remainder in a swap.
-  builder.lifi.swap('swap-remainder', {
-    bind: { amountIn: out.remainder },
+  builder.core.transfer('send-half', {
+    bind: {
+      amount: head,
+      recipient: builder.inputs.recipient,
+    },
+    config: {},
+  });
+
+  // Swap the rest.
+  builder.lifi.swap('swap-rest', {
+    bind: { amountIn: tail },
     config: {
       resourceOut: resources.native(1),
       slippage: 0.03,

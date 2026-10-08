@@ -36,7 +36,7 @@
  *   redeem            — redeem ERC-4626 vault shares via core.call
  *   wrap-eth          — wrap native ETH into WETH via ValueCall
  *   transfer          — transfer full token balance to a recipient
- *   partial-transfer  — transfer a specific amount, keeping the remainder
+ *   partial-transfer  — split off a fixed amount with core.splitAt, transfer it, swap the rest
  *   untyped-ref       — mix untypedOp with typed handles via raw.ref
  *   route-exact       — wrap 0.1 native ETH into WETH via /compose/route
  *   route-all         — unwrap the whole WETH balance to ETH via /compose/route
