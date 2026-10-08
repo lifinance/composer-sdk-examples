@@ -14,7 +14,7 @@ npm install
 
 This pulls in `@lifi/composer-sdk` and its `@lifi/compose-spec` peer dependency (pinned in lockstep), plus `tsx` to run the TypeScript directly.
 
-When copying an example into your own project, install the version pinned in `package.json` (or `@next`), e.g. `npm install @lifi/composer-sdk@0.7.1 @lifi/compose-spec@0.7.1`. The npm `latest` tag can lag behind and may not include every op these examples use.
+When copying an example into your own project, install the version pinned in `package.json` (or `@next`), e.g. `npm install @lifi/composer-sdk@0.9.0 @lifi/compose-spec@0.9.0`. The npm `latest` tag can lag behind and may not include every op these examples use.
 
 ## Configuration
 
@@ -69,7 +69,7 @@ Run with no name to see the full list. Available examples:
 | `redeem`            | Redeem ERC-4626 vault shares via `core.call`                       |
 | `wrap-eth`          | Wrap native ETH into WETH via a value call                         |
 | `transfer`          | Transfer a full token balance to a recipient                       |
-| `partial-transfer`  | Transfer a specific amount, keeping the remainder                  |
+| `partial-transfer`  | Split off a fixed amount with `core.splitAt`, transfer it, swap the rest |
 | `untyped-ref`       | Mix `untypedOp` with typed handles via `raw.ref`                   |
 | `zap-async`         | Zap USDC into an async Aave position (future output)               |
 | `fly-swap`          | Exit a Pendle PT via `lifi.zap`, then swap all proceeds to WETH with `fly.swap` |
