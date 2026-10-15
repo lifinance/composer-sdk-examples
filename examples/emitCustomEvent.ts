@@ -64,8 +64,7 @@ export const buildEmitCustomEvent = ({
   const flow = builder.build();
 
   // No `sweepTo`: this flow only reads and emits a log — it moves no funds, so
-  // there are no proxy-held terminal resources to sweep. Specifying `sweepTo`
-  // here would fail compilation with "no ... terminal resources ... to sweep".
+  // there are no proxy-held terminal resources to sweep.
   const request = sdk.request(flow, {
     signer: owner,
     inputs: {},

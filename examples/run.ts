@@ -16,6 +16,8 @@
  *   approve-deposit   — approve vault allowance then deposit USDC
  *   consolidate       — consolidate ERC-20 balances to USDC
  *   consolidate-eth   — consolidate ERC-20 balances to native ETH
+ *   continuation-settle        — swap USDC to WETH on Base, escrow it for a deferred settlement
+ *   continuation-bridge-settle — bridge Arbitrum USDC into a Base settlement escrow
  *   deposit-proxy     — deposit tokens already on the proxy into Aave
  *   dust-sweep        — split USDC 80/20 and sweep leftover dust
  *   swap              — swap WETH to USDC via LI.FI
@@ -36,8 +38,10 @@
  *   redeem            — redeem ERC-4626 vault shares via core.call
  *   wrap-eth          — wrap native ETH into WETH via ValueCall
  *   transfer          — transfer full token balance to a recipient
- *   partial-transfer  — transfer a specific amount, keeping the remainder
+ *   partial-transfer  — split off a fixed amount with core.splitAt, transfer it, swap the rest
  *   untyped-ref       — mix untypedOp with typed handles via raw.ref
+ *   uniswap-v2-add    — split USDC, swap half to WETH, add both to the Uniswap V2 pair
+ *   uniswap-v3-mint   — open a full-range Uniswap V3 USDC/WETH position
  *   route-exact       — wrap 0.1 native ETH into WETH via /compose/route
  *   route-all         — unwrap the whole WETH balance to ETH via /compose/route
  *   supported-chains  — list the chains this deployment supports, and guard on them
@@ -62,6 +66,8 @@ import { buildRedeemFromVault, buildWrapEth } from './callContract.js';
 import { API_KEY, BASE_URL, OWNER, PROXY, RECIPIENT } from './config.js';
 import { buildConsolidateToEth } from './consolidateToEth.js';
 import { buildConsolidateStablesToUsdc } from './consolidateToUsdc.js';
+import { buildContinuationBridgeSettleExample } from './continuationBridgeSettle.js';
+import { buildContinuationSettleExample } from './continuationSettle.js';
 import { buildDepositFromProxy } from './depositFromProxy.js';
 import { buildDustSweepExample } from './dustSweep.js';
 import { buildFlySwapExample } from './flySwap.js';
@@ -85,6 +91,8 @@ import { buildSwapWithAllowRevertExample } from './swapWithAllowRevert.js';
 import { buildSwapWithBalanceCheck } from './swapWithBalanceCheck.js';
 import { buildSwapWithOutputValidation } from './swapWithOutputValidation.js';
 import { buildPartialTransfer, buildTransferTokens } from './transferTokens.js';
+import { buildUniswapV2AddLiquidity } from './uniswapV2AddLiquidity.js';
+import { buildUniswapV3Mint } from './uniswapV3Mint.js';
 import { buildUntypedOpWithTypedRef } from './untypedOpWithTypedRef.js';
 
 const stringifyJson = (value: unknown) =>
@@ -136,6 +144,10 @@ const EXAMPLES: Record<string, () => ComposeCompileRequest> = {
       usdtAmount: '1000000000',
       daiAmount: '1000000000000000000000',
     }).request,
+  'continuation-settle': () =>
+    buildContinuationSettleExample({ owner: OWNER }).request,
+  'continuation-bridge-settle': () =>
+    buildContinuationBridgeSettleExample({ owner: OWNER }).request,
   'deposit-proxy': () =>
     buildDepositFromProxy({
       owner: OWNER,
@@ -202,6 +214,15 @@ const EXAMPLES: Record<string, () => ComposeCompileRequest> = {
       amount: '1000000000',
     }).request,
   'untyped-ref': () => buildUntypedOpWithTypedRef({ owner: OWNER }).request,
+  'uniswap-v2-add': () =>
+    buildUniswapV2AddLiquidity({ owner: OWNER, usdcAmount: '1000000000' })
+      .request,
+  'uniswap-v3-mint': () =>
+    buildUniswapV3Mint({
+      owner: OWNER,
+      usdcAmount: '1000000000',
+      wethAmount: '400000000000000000',
+    }).request,
 };
 
 // `/compose/route` examples build a `ComposeRouteRequest` and go to
