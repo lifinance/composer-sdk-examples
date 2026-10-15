@@ -14,7 +14,7 @@ npm install
 
 This pulls in `@lifi/composer-sdk` and its `@lifi/compose-spec` peer dependency (pinned in lockstep), plus `tsx` to run the TypeScript directly.
 
-When copying an example into your own project, install the version pinned in `package.json` (or `@next`), e.g. `npm install @lifi/composer-sdk@0.7.1 @lifi/compose-spec@0.7.1`. The npm `latest` tag can lag behind and may not include every op these examples use.
+When copying an example into your own project, install the version pinned in `package.json` (or `@next`), e.g. `npm install @lifi/composer-sdk@0.11.3 @lifi/compose-spec@0.11.3`. The npm `latest` tag can lag behind and may not include every op these examples use.
 
 ## Configuration
 
@@ -69,8 +69,12 @@ Run with no name to see the full list. Available examples:
 | `redeem`            | Redeem ERC-4626 vault shares via `core.call`                       |
 | `wrap-eth`          | Wrap native ETH into WETH via a value call                         |
 | `transfer`          | Transfer a full token balance to a recipient                       |
-| `partial-transfer`  | Transfer a specific amount, keeping the remainder                  |
+| `partial-transfer`  | Split off a fixed amount with `core.splitAt`, transfer it, swap the rest |
 | `untyped-ref`       | Mix `untypedOp` with typed handles via `raw.ref`                   |
+| `uniswap-v2-add`    | Split USDC, swap half to WETH, add both to the Uniswap V2 pair     |
+| `uniswap-v3-mint`   | Open a full-range Uniswap V3 USDC/WETH position                    |
+| `continuation-settle` | Swap USDC to WETH on Base, escrow it for a deferred settlement that supplies it to Aave |
+| `continuation-bridge-settle` | Bridge Arbitrum USDC into a Base settlement escrow that supplies it to Aave |
 | `zap-async`         | Zap USDC into an async Aave position (future output)               |
 | `fly-swap`          | Exit a Pendle PT via `lifi.zap`, then swap all proceeds to WETH with `fly.swap` |
 | `aave-borrow`       | Supply USDC to Aave v3, borrow against it with a health-factor guard |
@@ -97,7 +101,7 @@ AAVE rewards), `buildClaimRewards` in `callContract.ts` (resource-free claim),
 `aave-hf-explode` needs the signer to hold an Aave v3 position on Base so the
 health factor resolves.
 
-### Staged examples (flashloan / debt migration / continuation)
+### Staged examples (flashloan / debt migration)
 
 These live under `examples/staged/`. They use staged ops that are published on
 the `@staging` dist-tag but not yet enabled on the default production backend.
@@ -116,7 +120,6 @@ COMPOSER_BASE_URL=https://ethglobal-composer.li.quest npm run example -- --stage
 | `debt-migration-swap-exact-out` | Debt migration using an exact-output (`paraswap.buy`) debt swap       |
 | `debt-rebalance`                | Debt-swap an Aave position into a new debt token, same protocol        |
 | `flashloan-repay`               | Borrow + repay round-trip via `lifi.flashloanRepay`                   |
-| `manual-relay-continuation`     | Two-leg flow settled by a self-serve continuation                     |
 
 ## Project layout
 
@@ -126,7 +129,7 @@ examples/
   config.ts     # shared config (base URL, API key, sample addresses)
   loadEnv.ts    # loads .env (if present) before config is read
   <example>.ts  # one file per example, each exporting a build* function
-  staged/       # flashloan / debt-migration / continuation examples + their registry
+  staged/       # flashloan / debt-migration examples + their registry
 ```
 
 Each example exports a `build*` function that returns `{ flow, request }`. The flow is built with the SDK's typed `FlowBuilder`; the runner compiles the request via `sdk.client.compile`. Read any example file alongside its row in the table above to see the SDK API in use.

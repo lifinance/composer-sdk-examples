@@ -73,7 +73,8 @@ export const buildAaveClaimRewards = ({
     inputs: {
       recipient,
     },
-    sweepTo: builder.context.sender,
+    // No `sweepTo`: the transfer forwards the whole claim, so the proxy holds
+    // nothing left to sweep.
   });
 
   return { flow, request };
