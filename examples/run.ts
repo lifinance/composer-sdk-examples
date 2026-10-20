@@ -18,6 +18,8 @@
  *   consolidate-eth   — consolidate ERC-20 balances to native ETH
  *   continuation-settle        — swap USDC to WETH on Base, escrow it for a deferred settlement
  *   continuation-bridge-settle — bridge Arbitrum USDC into a Base settlement escrow
+ *   continuation-exact-invoice      — escrow USDC on Base for an exact leg that pays a Request Network invoice
+ *   continuation-exact-swap-invoice — swap WETH to USDC on Base, escrow it for the same exact invoice leg
  *   deposit-proxy     — deposit tokens already on the proxy into Aave
  *   dust-sweep        — split USDC 80/20 and sweep leftover dust
  *   swap              — swap WETH to USDC via LI.FI
@@ -67,6 +69,11 @@ import { API_KEY, BASE_URL, OWNER, PROXY, RECIPIENT } from './config.js';
 import { buildConsolidateToEth } from './consolidateToEth.js';
 import { buildConsolidateStablesToUsdc } from './consolidateToUsdc.js';
 import { buildContinuationBridgeSettleExample } from './continuationBridgeSettle.js';
+import {
+  buildContinuationExactInvoiceExample,
+  buildContinuationExactSwapInvoiceExample,
+  type UsdcInvoice,
+} from './continuationExactInvoice.js';
 import { buildContinuationSettleExample } from './continuationSettle.js';
 import { buildDepositFromProxy } from './depositFromProxy.js';
 import { buildDustSweepExample } from './dustSweep.js';
@@ -101,6 +108,16 @@ const stringifyJson = (value: unknown) =>
     (_key, v: unknown) => (typeof v === 'bigint' ? v.toString() : v),
     2,
   );
+
+// A sample invoice for the exact-leg examples: 990 USDC to the payee plus a
+// 10 USDC fee.
+const SAMPLE_INVOICE: UsdcInvoice = {
+  payee: RECIPIENT,
+  amount: 990_000_000n,
+  fee: 10_000_000n,
+  feeAddress: '0x2222222222222222222222222222222222222222',
+  paymentReference: '0x8c6f1d3b4a5e7c21',
+};
 
 const EXAMPLES: Record<string, () => ComposeCompileRequest> = {
   'aave-borrow': () =>
@@ -148,6 +165,18 @@ const EXAMPLES: Record<string, () => ComposeCompileRequest> = {
     buildContinuationSettleExample({ owner: OWNER }).request,
   'continuation-bridge-settle': () =>
     buildContinuationBridgeSettleExample({ owner: OWNER }).request,
+  'continuation-exact-invoice': () =>
+    buildContinuationExactInvoiceExample({
+      owner: OWNER,
+      invoice: SAMPLE_INVOICE,
+      usdcAmount: '1050000000',
+    }).request,
+  'continuation-exact-swap-invoice': () =>
+    buildContinuationExactSwapInvoiceExample({
+      owner: OWNER,
+      invoice: SAMPLE_INVOICE,
+      wethAmount: '1000000000000000000',
+    }).request,
   'deposit-proxy': () =>
     buildDepositFromProxy({
       owner: OWNER,

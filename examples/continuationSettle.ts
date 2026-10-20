@@ -50,7 +50,7 @@ export interface ContinuationSettleInput {
  *   settlement account, not the user). Never set the leg's own epilogue. At
  *   commit the composer appends the settlement epilogue, which forwards each
  *   outcome to the provider's recipient and the residual to `refund`.
- * - Omit `funding` and `perpetual` when the settle input is a bridge's
+ * - Omit `funding` when the settle input is a bridge's
  *   `amountOut` (see `continuationBridgeSettle.ts`).
  * - `minAmount` is optional: a guard or an op floor on the outcome token
  *   proves it, and an unconsumed funding input proves the full funding floor.

@@ -132,22 +132,22 @@
   resolved "https://registry.yarnpkg.com/@esbuild/win32-x64/-/win32-x64-0.28.0.tgz#04d90d5752b4ce65d2b6ac25eba08ff7624fe07c"
   integrity sha512-pEl1bO9mfAmIC+tW5btTmrKaujg3zGtUmWNdCw/xs70FBjwAL3o9OEKNHvNmnyylD6ubxUERiEhdsL0xBQ9efw==
 
-"@lifi/compose-spec@0.7.1":
-  version "0.7.1"
-  resolved "https://registry.yarnpkg.com/@lifi/compose-spec/-/compose-spec-0.7.1.tgz#0c198457b77598e2a6a556a58ff851a0e4566bc5"
-  integrity sha512-98xdF8mPavT+ydtOfNYfD+0QunL9UIKgA0/qDhtuK5fyOMza6tNfAPBgnqbY4v0FqUXd+ebOALAMzL/Wf2xwNA==
+"@lifi/compose-spec@0.12.0":
+  version "0.12.0"
+  resolved "https://registry.yarnpkg.com/@lifi/compose-spec/-/compose-spec-0.12.0.tgz#60ce6f7e3a75dfb7a6f8d5c4462ef23420b047b7"
+  integrity sha512-KhixgJFYfQZ99GZQCmtwA6pGvsH7MVtOM2i8Apu34iR2x5rwKme9zkIevP9p+l8UkxQrzHZX1igs5hQH0DrMjw==
   dependencies:
     effect "^3.21.0"
-    zod "^4.6.5"
+    zod "^4.6.6"
 
-"@lifi/composer-sdk@0.7.1":
-  version "0.7.1"
-  resolved "https://registry.yarnpkg.com/@lifi/composer-sdk/-/composer-sdk-0.7.1.tgz#16098303c1b7f89eada93c19602cd3e1dab8074c"
-  integrity sha512-XYqd1wiI+2oyie9rxSysiZU/uw8GL4KZkYXQ3I9zxwGeZrddSLs8uGqtXkBS4ZdMgdTccykuGUF5X5RiKGYluw==
+"@lifi/composer-sdk@0.12.0":
+  version "0.12.0"
+  resolved "https://registry.yarnpkg.com/@lifi/composer-sdk/-/composer-sdk-0.12.0.tgz#b9633e9ba0845765dc738f0c90ced9cb06ab7196"
+  integrity sha512-U4vb9iYMMypU65kwFSZ6osKwwwSku9RXY/xldhO6n1dPhEiH+4I0jxmm5wkERdIQS1LMnlqlci+zf/3Crst7eQ==
   dependencies:
     abitype "^1.2.3"
     effect "^3.21.0"
-    zod "^4.6.5"
+    zod "^4.6.6"
 
 "@standard-schema/spec@^1.0.0":
   version "1.1.0"
@@ -378,7 +378,7 @@ wrap-ansi@^9.0.0:
     string-width "^7.0.0"
     strip-ansi "^7.1.0"
 
-zod@^4.6.5:
-  version "4.6.6"
-  resolved "https://registry.yarnpkg.com/zod/-/zod-4.6.6.tgz#0bb0cf57b87011a71ec28ed2e1b51f6455563f9a"
-  integrity sha512-4UmzQUF5fxvfcYHlbjBmejU+w+hbDnWFx4aS8kBx7nPBHcO2SqPbpAG8snbdg+Xse4pRefR98hgjFgIMCI/UhA==
+zod@^4.6.6:
+  version "4.6.7"
+  resolved "https://registry.yarnpkg.com/zod/-/zod-4.6.7.tgz#e806cf64a7f4e37635ce9f2f52c04c3766f75e5b"
+  integrity sha512-g8W2D2kU6a8untc053fX1uVBKzM7yqAxW/3zwk83+6RyF2+SKOuV+c0wBDhUwzV1PaGapmZH+rmcUzPf+3CGwg==

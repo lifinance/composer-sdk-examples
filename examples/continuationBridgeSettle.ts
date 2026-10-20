@@ -34,8 +34,7 @@ export interface ContinuationBridgeSettleInput {
  *   escrow on Base instead of landing at an address
  * - `continuation.settle` bound to `bridge.amountOut` (delivered funding): the
  *   bridge delivers straight into the escrow, so the user signs one
- *   transaction on Arbitrum, and the settle must omit `funding` and
- *   `perpetual`
+ *   transaction on Arbitrum, and the settle must omit `funding`
  * - `validity.expiresAtMs` at least `max(3 × the bridge ETA, 30 minutes)` away
  * - A leg on the escrow chain (Base) that does the work the user could not do
  *   from Arbitrum: `lifi.zap` supplies the landed USDC to Aave. The aBasUSDC

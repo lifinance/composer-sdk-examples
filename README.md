@@ -14,7 +14,7 @@ npm install
 
 This pulls in `@lifi/composer-sdk` and its `@lifi/compose-spec` peer dependency (pinned in lockstep), plus `tsx` to run the TypeScript directly.
 
-When copying an example into your own project, install the version pinned in `package.json` (or `@next`), e.g. `npm install @lifi/composer-sdk@0.11.3 @lifi/compose-spec@0.11.3`. The npm `latest` tag can lag behind and may not include every op these examples use.
+When copying an example into your own project, install the version pinned in `package.json` (or `@next`), e.g. `npm install @lifi/composer-sdk@0.12.0 @lifi/compose-spec@0.12.0`. The npm `latest` tag can lag behind and may not include every op these examples use.
 
 ## Configuration
 
@@ -60,6 +60,10 @@ Run with no name to see the full list. Available examples:
 | `aave-emode`        | Switch the executor's Aave v3 eMode category                       |
 | `consolidate`       | Consolidate multiple ERC-20 balances into USDC                     |
 | `consolidate-eth`   | Consolidate multiple ERC-20 balances into native ETH               |
+| `continuation-settle` | Swap USDC to WETH on Base, escrow it for a deferred settlement that supplies it to Aave |
+| `continuation-bridge-settle` | Bridge Arbitrum USDC into a Base settlement escrow that supplies it to Aave |
+| `continuation-exact-invoice` | Escrow USDC on Base for an exact continuation leg that pays a Request Network invoice and returns the surplus |
+| `continuation-exact-swap-invoice` | Swap WETH to USDC on Base and escrow the output for the same exact invoice leg |
 | `swap-recipient`    | Swap WETH + DAI to USDC and send to a different recipient           |
 | `swap-check`        | Swap WETH to USDC with a balance precondition                      |
 | `swap-validate`     | Swap with computed slippage bounds (`bpsDown`/`bpsUp`/`assertInRange`) |
@@ -73,8 +77,6 @@ Run with no name to see the full list. Available examples:
 | `untyped-ref`       | Mix `untypedOp` with typed handles via `raw.ref`                   |
 | `uniswap-v2-add`    | Split USDC, swap half to WETH, add both to the Uniswap V2 pair     |
 | `uniswap-v3-mint`   | Open a full-range Uniswap V3 USDC/WETH position                    |
-| `continuation-settle` | Swap USDC to WETH on Base, escrow it for a deferred settlement that supplies it to Aave |
-| `continuation-bridge-settle` | Bridge Arbitrum USDC into a Base settlement escrow that supplies it to Aave |
 | `zap-async`         | Zap USDC into an async Aave position (future output)               |
 | `fly-swap`          | Exit a Pendle PT via `lifi.zap`, then swap all proceeds to WETH with `fly.swap` |
 | `aave-borrow`       | Supply USDC to Aave v3, borrow against it with a health-factor guard |
@@ -92,14 +94,34 @@ LIFI_API_KEY=your-key npm run example swap-zap
 ```
 
 A few example sources are not wired into the runner and serve as copy-pasteable
-references only: `swapWithFee.ts` (integrator fee), `aaveClaimRewards.ts` (claim
-AAVE rewards), `buildClaimRewards` in `callContract.ts` (resource-free claim),
-`emitCustomEvent.ts` (custom on-chain event via `core.emitEvent2`),
-`invariantChecks.ts` (`invariant.gte` / `invariant.allowanceAtLeast` guards),
-`simulateCompiledSwap.ts` and `simulateRawTransaction.ts` (`sdk.simulate`).
+references only: `aaveClaimRewards.ts` (claim AAVE rewards), `buildClaimRewards`
+in `callContract.ts` (resource-free claim), `emitCustomEvent.ts` (custom
+on-chain event via `core.emitEvent2`), `invariantChecks.ts` (`invariant.gte` /
+`invariant.allowanceAtLeast` guards), `simulateCompiledSwap.ts` and
+`simulateRawTransaction.ts` (`sdk.simulate`).
 
 `aave-hf-explode` needs the signer to hold an Aave v3 position on Base so the
 health factor resolves.
+
+The `continuation-*` examples escrow funds for a deferred settlement through the
+`intent-factory` settlement provider. They compile only against a backend that
+configures that provider, such as `https://composer.li.quest`.
+
+The `continuation-exact-*` examples settle through an exact continuation leg
+(`continuation.settle` with `exact: true`): the escrow is bound to the leg's
+compiled calldata, so the leg may run a `core.call` to a third party, here
+Request Network's `ERC20FeeProxy`. They also need the provider configured with
+the solver's executor; any other backend rejects the settle with a
+`validation_error`. In the response, `settlements.settle.binding` holds what the
+escrow is bound to. Check that `binding.payloadHash` is
+`keccak256(binding.payload)` before you submit the funding transaction.
+
+The invoice payment leaves the flow, so the price-impact check would count it as
+lost value. Both exact examples set `maxPriceImpactBps: 0` to disable the check.
+In `continuation-exact-swap-invoice` that also removes the check's bound on the
+swap's price: compare the swap's minimum output
+(`settlements.settle.escrow.floor`) with an independent WETH price before
+signing.
 
 ### Staged examples (flashloan / debt migration)
 
