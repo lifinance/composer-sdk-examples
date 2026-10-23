@@ -8,14 +8,13 @@
 // wrapper does that and restores production afterward.
 import type { ComposeCompileRequest } from '@lifi/compose-spec';
 
-import { OWNER, RECIPIENT } from '../config.js';
+import { OWNER } from '../config.js';
 
 import { buildAaveDebtRebalanceExactOut } from './aaveDebtRebalanceExactOut.js';
 import { buildAaveToMorphoDebtMigration } from './aaveToMorphoDebtMigration.js';
 import { buildAaveToMorphoDebtMigrationWithSwap } from './aaveToMorphoDebtMigrationWithSwap.js';
 import { buildAaveToMorphoDebtMigrationWithSwapExactOut } from './aaveToMorphoDebtMigrationWithSwapExactOut.js';
 import { buildTrivialFlashloanRepay } from './flashloanRepay.js';
-import { buildManualRelayContinuation } from './manualRelayContinuation.js';
 
 export const STAGED_EXAMPLES: Record<string, () => ComposeCompileRequest> = {
   'debt-rebalance': () =>
@@ -51,13 +50,5 @@ export const STAGED_EXAMPLES: Record<string, () => ComposeCompileRequest> = {
       collateralAmount: '1000000000000000000',
       debtAmount: '1000000000',
       morphoBorrowAmount: '1100000000',
-    }).request,
-  'manual-relay-continuation': () =>
-    buildManualRelayContinuation({
-      owner: OWNER,
-      recipient: RECIPIENT,
-      amount: '1000000',
-      minAmountOut: '990000',
-      expiresAtMs: 1900000000000,
     }).request,
 };
