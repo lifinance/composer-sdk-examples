@@ -56,7 +56,14 @@ import type {
   ComposeRouteRequest,
 } from '@lifi/compose-spec';
 
-import { type ComposeSdk, createComposeSdk } from '@lifi/composer-sdk';
+import {
+  type ComposeCompileResult,
+  type ComposeSdk,
+  createComposeSdk,
+  isComposeError,
+  isComposeSdkOutdatedError,
+  isComposeServerOutdatedError,
+} from '@lifi/composer-sdk';
 
 import { buildAaveBorrow } from './aaveBorrow.js';
 import { buildAaveHealthFactorExplode } from './aaveHealthFactorExplode.js';
@@ -267,18 +274,53 @@ const QUERY_EXAMPLES: Record<string, (sdk: ComposeSdk) => Promise<void>> = {
   'supported-chains': runSupportedChainsExample,
 };
 
+const printCompileSummary = (result: ComposeCompileResult): void => {
+  const approvals = result.approvals?.length ?? 0;
+  const tx = result.transactionRequest;
+  const lines = [
+    `status: ${result.status}`,
+    `userProxy: ${result.userProxy}`,
+    `approvals: ${approvals}`,
+    tx
+      ? `transactionRequest: to=${tx.to} chainId=${tx.chainId} value=${tx.value} gasLimit=${tx.gasLimit ?? 'absent'}`
+      : 'transactionRequest: absent',
+    'signed: no; broadcast: no',
+  ];
+  if (result.status === 'partial') {
+    lines.push(
+      `partial: ${result.error.kind} ${result.error.message}; simulationRevert.code=${result.simulationRevert.code}`,
+    );
+  }
+  console.log(lines.join('\n'));
+};
+
+const printComposeError = (err: unknown): void => {
+  if (isComposeSdkOutdatedError(err)) {
+    console.error(`compose version mismatch: ${err.kind} ${err.message}`);
+    return;
+  }
+  if (isComposeServerOutdatedError(err)) {
+    console.error(`compose version mismatch: ${err.kind} ${err.message}`);
+    return;
+  }
+  if (isComposeError(err)) {
+    console.error(
+      `compose error: code=${err.code} kind=${err.kind ?? 'none'} status=${err.status ?? 'none'} ${err.message}`,
+    );
+    return;
+  }
+  console.error(err);
+};
+
 const run = async () => {
   const args = process.argv.slice(2);
   const useStaged = args.includes('--staged');
   const name = args.find((arg) => arg !== '--staged');
 
-  // Staged examples live under examples/staged/ and reference not-yet-prod
-  // definitions, so they are deliberately excluded from this production file's
-  // type-check. With --staged, pull their registry in via a NON-LITERAL dynamic
-  // import (kept `any` to tsc, so the staged files are not dragged into the
-  // production program). Requires a `@staging` build of `@lifi/composer-sdk`
-  // and `@lifi/compose-spec`, so the staged ops/materialisers exist at runtime
-  // (see the README).
+  // Staged examples reference lifi.flashloanRepay, which the pinned 0.13.0 SDK
+  // does not generate. --staged loads them without pulling them into the
+  // production type-check. Do not install the npm staging tag (0.4.0-staging.1)
+  // over this checkout: that pair is incompatible with the live 0.13.0 server.
   let examples: Record<string, () => ComposeCompileRequest> = EXAMPLES;
   if (useStaged) {
     const stagedModule = (await import(
@@ -331,10 +373,13 @@ const run = async () => {
     : await sdk.client.compile(request as ComposeCompileRequest);
 
   console.log('\n--- Result ---');
+  if (!routeBuilder) {
+    printCompileSummary(result as ComposeCompileResult);
+  }
   console.log(stringifyJson(result));
 };
 
 run().catch((err: unknown) => {
-  console.error(err);
+  printComposeError(err);
   process.exit(1);
 });

@@ -1,11 +1,8 @@
-// Registry of staged (not-yet-prod) examples for the live runner. This is data,
-// not a runner: src/examples/run.ts imports it via a non-literal dynamic import
-// when invoked with `--staged`, so this file (which references staged definitions)
-// is never pulled into the production type-check. It IS type-checked under
-// tsconfig.staged.json (see verify:staged).
-//
-// Running these requires the SDK regenerated with `--staged`; the example:staged
-// wrapper does that and restores production afterward.
+// Registry loaded by examples/run.ts only with --staged, through a non-literal
+// dynamic import. tsconfig.json excludes this directory. The pinned 0.13.0 SDK
+// does not generate lifi.flashloanRepay. The npm staging tag (0.4.0-staging.1)
+// is not compatible with the production 0.13 minor version. Do not install it
+// over the pinned pair or compile these examples against production.
 import type { ComposeCompileRequest } from '@lifi/compose-spec';
 
 import { OWNER } from '../config.js';
