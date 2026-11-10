@@ -53,9 +53,9 @@ verify/
 - To add a runnable example, add `examples/<name>.ts` with a `build*` export,
   register it in `examples/run.ts` and add a row to the README example table.
 - Some sources are reference-only and the runner does not wire them in:
-  `aaveClaimRewards.ts`, `emitCustomEvent.ts`, `invariantChecks.ts`,
-  `simulateCompiledSwap.ts` and `simulateRawTransaction.ts`. Keep this list
-  matching the README.
+  `aaveClaimRewards.ts`, `buildClaimRewards` in `callContract.ts`,
+  `emitCustomEvent.ts`, `invariantChecks.ts`, `simulateCompiledSwap.ts` and
+  `simulateRawTransaction.ts`. Keep this list matching the README.
 - Imports use ESM with `.js` suffixes (`"type": "module"`, `NodeNext`
   resolution). TypeScript runs in `strict` mode with `noUnusedLocals`,
   `noUnusedParameters` and `noUncheckedIndexedAccess`.
