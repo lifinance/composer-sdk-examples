@@ -1,8 +1,9 @@
-// Registry loaded by examples/run.ts only with --staged, through a non-literal
-// dynamic import. tsconfig.json excludes this directory. The pinned 0.13.0 SDK
-// does not generate lifi.flashloanRepay. The npm staging tag (0.4.0-staging.1)
-// is not compatible with the production 0.13 minor version. Do not install it
-// over the pinned pair or compile these examples against production.
+// Registry of the flashloan examples, loaded by examples/run.ts only with
+// --staged, through a non-literal dynamic import. `lifi.flashloanRepay` and
+// `materialisers.flashloan` exist only in the staging SDK build, so
+// tsconfig.json excludes this directory and tsconfig.staged.json type-checks
+// it. Install the staging pair first (`npm run staged:install`); README.md
+// ("Flashloan examples") lists what a live compile needs.
 import type { ComposeCompileRequest } from '@lifi/compose-spec';
 
 import { OWNER } from '../config.js';
@@ -32,14 +33,12 @@ export const STAGED_EXAMPLES: Record<string, () => ComposeCompileRequest> = {
     buildTrivialFlashloanRepay({
       owner: OWNER,
       amount: '10000000000',
-      fee: '5000000',
     }).request,
   'debt-migration': () =>
     buildAaveToMorphoDebtMigration({
       owner: OWNER,
       collateralAmount: '1000000000000000000',
       debtAmount: '1000000000',
-      debtFlashloanFee: '500000',
     }).request,
   'debt-migration-swap': () =>
     buildAaveToMorphoDebtMigrationWithSwap({

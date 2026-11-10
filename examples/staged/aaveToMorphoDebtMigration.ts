@@ -1,4 +1,8 @@
-import type { ComposeCompileRequest, Flow } from '@lifi/compose-spec';
+import {
+  type ComposeCompileRequest,
+  flashloanMaxFee,
+  type Flow,
+} from '@lifi/compose-spec';
 
 import { createComposeSdk, materialisers, resources } from '@lifi/composer-sdk';
 import type { Address } from '@lifi/composer-sdk';
@@ -37,11 +41,6 @@ export interface AaveToMorphoDebtMigrationInput {
   readonly collateralAmount: `${bigint}`;
   /** USDC principal borrowed from Aave (in smallest units). */
   readonly debtAmount: `${bigint}`;
-  /**
-   * Aave-V3 flashloan fee on `debtAmount` — equals
-   * `computeDefaultFee('aave-v3', debtAmount)` (5 bps of the principal).
-   */
-  readonly debtFlashloanFee: `${bigint}`;
 }
 
 /**
@@ -63,21 +62,22 @@ export interface AaveToMorphoDebtMigrationInput {
  * - `aave.repay` clears the Aave USDC debt with flashloan #1.
  * - `lifi.zap` withdraws the freed WETH from Aave (aBasWETH → WETH).
  * - `morphoBlue.supplyCollateral` deposits flashloan #2's WETH into Morpho.
- * - `morphoBlue.borrow` mints exactly `debtAmount + debtFlashloanFee` USDC
- *   so the `borrowed` resource settles flashloan #1 with zero residual.
- * - Two `lifi.flashloanRepay` ops settle each leg: the USDC leg from the
- *   Morpho borrow, the WETH leg from the Aave withdrawal (Balancer V2
- *   charges no fee, so the principal alone covers it).
+ * - `morphoBlue.borrow` mints exactly the USDC leg's reserve: its principal
+ *   plus its `maxFee` (5 bps, rounded up).
+ * - Two `lifi.flashloanRepay` ops earmark each leg's funds: the USDC leg's
+ *   from the Morpho borrow, the WETH leg's from the Aave withdrawal (Balancer
+ *   V2 charges no fee, so the principal alone covers it). They move nothing:
+ *   the funds stay in the proxy and the flashloan runtime repays both lenders
+ *   after the program.
  *
  * After execution the signer holds `debtAmount` USDC and an open Morpho
- * Blue position (`collateralAmount` WETH collateral, `debtAmount +
- * debtFlashloanFee` USDC debt). The Aave position is closed.
+ * Blue position (`collateralAmount` WETH collateral, USDC debt equal to the
+ * reserve). The Aave position is closed.
  */
 export const buildAaveToMorphoDebtMigration = ({
   owner,
   collateralAmount,
   debtAmount,
-  debtFlashloanFee,
 }: AaveToMorphoDebtMigrationInput): {
   flow: Flow;
   request: ComposeCompileRequest;
@@ -90,10 +90,16 @@ export const buildAaveToMorphoDebtMigration = ({
   const collateralFlashloanAmount =
     trimForAaveWithdrawalRounding(collateralAmount);
 
-  // Morpho borrow must equal principal + Aave-V3 flashloan fee so the
-  // `borrowed` resource exactly settles the USDC flashloan leg.
+  // The Morpho borrow is the USDC leg's reserve, principal plus the default
+  // fee cap, so the `borrowed` resource alone covers the leg at settlement.
+  // The request states the same `maxFee` on the leg, so client and server
+  // agree on the cap.
+  const maxFee = flashloanMaxFee({
+    providerKind: 'aave-v3',
+    amount: debtFlashloanAmount,
+  });
   const morphoBorrowAmount = (
-    BigInt(debtFlashloanAmount) + BigInt(debtFlashloanFee)
+    BigInt(debtFlashloanAmount) + maxFee
   ).toString() as `${bigint}`;
 
   const builder = sdk.flow(8453, {
@@ -152,7 +158,7 @@ export const buildAaveToMorphoDebtMigration = ({
     config: { marketParams: MORPHO_WETH_USDC_MARKET, mode: 'exact' },
   });
 
-  // Borrow exactly principal + fee from Morpho to settle the USDC leg.
+  // Borrow exactly the USDC leg's reserve from Morpho.
   const morphoBorrow = builder.morphoBlue.borrow('borrow-from-morpho', {
     bind: {},
     config: {
@@ -161,17 +167,15 @@ export const buildAaveToMorphoDebtMigration = ({
     },
   });
 
-  // Settle the USDC flashloan leg with the Morpho borrow.
+  // Earmark the Morpho borrow for the USDC flashloan leg.
   builder.lifi.flashloanRepay('repay-debt-flashloan', {
     bind: { funds: morphoBorrow.borrowed },
-    config: { leg: 'debtFlashloan' },
   });
 
-  // Settle the WETH flashloan leg with the Aave withdrawal. Balancer V2
+  // Earmark the Aave withdrawal for the WETH flashloan leg. Balancer V2
   // charges no fee, so the withdrawn principal alone covers the leg.
   builder.lifi.flashloanRepay('repay-collateral-flashloan', {
     bind: { funds: withdrawFromAave.amountOut },
-    config: { leg: 'collateralFlashloan' },
   });
 
   const flow = builder.build();
@@ -185,6 +189,7 @@ export const buildAaveToMorphoDebtMigration = ({
       debtFlashloan: materialisers.flashloan({
         providerKind: 'aave-v3',
         amount: debtFlashloanAmount,
+        maxFee,
       }),
       collateralFlashloan: materialisers.flashloan({
         providerKind: 'balancer-v2',

@@ -10,9 +10,12 @@
   "type": "module",
   "scripts": {
     "example": "tsx examples/run.ts",
+    "example:staged": "tsx examples/run.ts --staged",
     "start": "tsx examples/run.ts",
     "typecheck": "tsc --noEmit",
-    "test": "tsx verify/contract.ts"
+    "typecheck:staged": "tsc -p tsconfig.staged.json",
+    "test": "tsx verify/contract.ts",
+    "staged:install": "npm install --no-save --no-package-lock @lifi/composer-sdk@staging @lifi/compose-spec@staging"
   },
   "dependencies": {
     "@lifi/compose-spec": "0.13.0",

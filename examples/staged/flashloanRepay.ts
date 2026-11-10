@@ -1,64 +1,69 @@
-import type { ComposeCompileRequest, Flow } from '@lifi/compose-spec';
+import {
+  type ComposeCompileRequest,
+  flashloanMaxFee,
+  type Flow,
+} from '@lifi/compose-spec';
 
 import { createComposeSdk, materialisers, resources } from '@lifi/composer-sdk';
 import type { Address } from '@lifi/composer-sdk';
 import { API_KEY, BASE_URL } from '../config.js';
 
-const USDC = '0xA0b86991c6218b36c1d19D4a2e9Eb0cE3606eB48';
-const WETH = '0xC02aaA39b223FE8D0A0e5C4F27eAD9083C756Cc2';
+// Flashloans are enabled on Base only.
+const BASE = 8453;
+const USDC = '0x833589fCD6eDb6E08f4c7C32D4f71b54bdA02913';
+const WETH = '0x4200000000000000000000000000000000000006';
 
 export interface FlashloanRepayInput {
   readonly owner: Address;
   /** Principal to borrow (in the borrowed token's smallest units). */
   readonly amount: `${bigint}`;
-  /**
-   * Provider fee top-up (in the borrowed token's smallest units). Equals
-   * `computeDefaultFee(providerKind, amount)` for the chosen provider.
-   * For Aave v3 this is 5 bps of the principal.
-   */
-  readonly fee: `${bigint}`;
 }
 
 /**
- * Trivial smoke-test variant: borrow USDC via Aave v3, top up the protocol
- * fee via a `directDeposit`, and repay principal + fee back to the LiFi
- * flashloan adapter.
+ * Trivial smoke-test variant: borrow USDC via Aave v3 and top up the leg's fee
+ * cap via a `directDeposit`, so the proxy holds the leg's reserve (principal
+ * plus `maxFee`) when the flashloan runtime repays Aave after the program.
  *
- * Demonstrates the leg-vs-funds split introduced by the repay redesign:
- * - `config.leg` names the materialised flashloan input ("borrowed")
- * - `bind.funds` provides the principal-side handle (the borrowed handle)
- * - `bind.feeBuffer` provides the fee-side handle (the directDeposit)
+ * Demonstrates two `lifi.flashloanRepay` nodes earmarking two handles of the
+ * borrowed token. The op takes no config: it accepts any handle of a token
+ * that a flashloan input borrows.
+ * - `repay` binds `funds` to the borrowed handle (the principal)
+ * - `repayFee` binds `funds` to the directDeposit handle (the fee top-up)
  *
- * Both bindings exist purely to satisfy linearity; the op emits a single
- * `SafeTransfer(token, adapter, principal + fee)`.
+ * The op emits no instruction: each node earmarks its handle for
+ * settlement, so the flow reports neither as an output paid to the user.
  */
 export const buildTrivialFlashloanRepay = ({
   owner,
   amount,
-  fee,
 }: FlashloanRepayInput): {
   flow: Flow;
   request: ComposeCompileRequest;
 } => {
   const sdk = createComposeSdk({ baseUrl: BASE_URL, apiKey: API_KEY });
 
-  const builder = sdk.flow(1, {
+  const builder = sdk.flow(BASE, {
     name: 'flashloan-repay-trivial',
     inputs: {
-      borrowed: resources.erc20(USDC, 1),
-      feeTopUp: resources.erc20(USDC, 1),
+      borrowed: resources.erc20(USDC, BASE),
+      feeTopUp: resources.erc20(USDC, BASE),
     },
   });
 
   builder.lifi.flashloanRepay('repay', {
-    bind: {
-      funds: builder.inputs.borrowed,
-      feeBuffer: builder.inputs.feeTopUp,
-    },
-    config: { leg: 'borrowed' },
+    bind: { funds: builder.inputs.borrowed },
+  });
+
+  builder.lifi.flashloanRepay('repayFee', {
+    bind: { funds: builder.inputs.feeTopUp },
   });
 
   const flow = builder.build();
+
+  // The leg's default fee cap: 5 bps of the principal, rounded up. The leg
+  // states it and the top-up deposits it, so client and server agree on the
+  // cap.
+  const maxFee = flashloanMaxFee({ providerKind: 'aave-v3', amount });
 
   const request = sdk.request(flow, {
     signer: owner,
@@ -66,49 +71,48 @@ export const buildTrivialFlashloanRepay = ({
       borrowed: materialisers.flashloan({
         providerKind: 'aave-v3',
         amount,
+        maxFee,
       }),
-      feeTopUp: materialisers.directDeposit({ amount: fee }),
+      feeTopUp: materialisers.directDeposit({ amount: maxFee }),
     },
-    // The smoke flow returns the full principal + fee to the adapter and
-    // produces no user output, so the guard sees the fee top-up as 100%
-    // loss. 0 skips the check; the user's real cost is only the provider fee.
+    // The smoke flow keeps the principal and the fee top-up in the proxy for
+    // settlement and produces no user output, so the guard sees the fee
+    // top-up as 100% loss. 0 skips the check; the user's real cost is only
+    // the provider fee.
     maxPriceImpactBps: 0,
   });
 
   return { flow, request };
 };
 
-export interface SwapAndRepayInput {
-  readonly owner: Address;
-  readonly amount: `${bigint}`;
-}
-
 /**
  * Realistic variant: borrow USDC, swap to WETH, swap back to USDC, then
- * repay using the swap-back's `amountOut` as the funds handle. No
- * `feeBuffer` is needed because the swap-back's output is sized to cover
- * `principal + fee` by construction.
+ * earmark the swap-back's `amountOut` as the funds handle. No second repay
+ * node: the swap-back's output must cover the leg's principal plus the Aave
+ * fee on its own. If it falls short, the flight's settlement reverts
+ * `FlashloanRepaymentShort`, which compose reports as a 400
+ * `validation_error` with a `shortfall`.
  */
 export const buildSwapAndRepay = ({
   owner,
   amount,
-}: SwapAndRepayInput): {
+}: FlashloanRepayInput): {
   flow: Flow;
   request: ComposeCompileRequest;
 } => {
   const sdk = createComposeSdk({ baseUrl: BASE_URL, apiKey: API_KEY });
 
-  const builder = sdk.flow(1, {
+  const builder = sdk.flow(BASE, {
     name: 'flashloan-swap-and-repay',
     inputs: {
-      borrowed: resources.erc20(USDC, 1),
+      borrowed: resources.erc20(USDC, BASE),
     },
   });
 
   const toWeth = builder.lifi.swap('swap-to-weth', {
     bind: { amountIn: builder.inputs.borrowed },
     config: {
-      resourceOut: resources.erc20(WETH, 1),
+      resourceOut: resources.erc20(WETH, BASE),
       slippage: 0.005,
     },
   });
@@ -116,14 +120,13 @@ export const buildSwapAndRepay = ({
   const backToUsdc = builder.lifi.swap('swap-back-to-usdc', {
     bind: { amountIn: toWeth.amountOut },
     config: {
-      resourceOut: resources.erc20(USDC, 1),
+      resourceOut: resources.erc20(USDC, BASE),
       slippage: 0.005,
     },
   });
 
   builder.lifi.flashloanRepay('repay', {
     bind: { funds: backToUsdc.amountOut },
-    config: { leg: 'borrowed' },
   });
 
   const flow = builder.build();

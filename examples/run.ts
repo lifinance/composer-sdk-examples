@@ -317,10 +317,10 @@ const run = async () => {
   const useStaged = args.includes('--staged');
   const name = args.find((arg) => arg !== '--staged');
 
-  // Staged examples reference lifi.flashloanRepay, which the pinned 0.13.0 SDK
-  // does not generate. --staged loads them without pulling them into the
-  // production type-check. Do not install the npm staging tag (0.4.0-staging.1)
-  // over this checkout: that pair is incompatible with the live 0.13.0 server.
+  // The flashloan examples use lifi.flashloanRepay and the flashloan
+  // materialiser, which only the staging SDK generates. --staged loads them
+  // through a non-literal import, so the production type-check never sees
+  // them. Run `npm run staged:install` first; `npm ci` restores the pins.
   let examples: Record<string, () => ComposeCompileRequest> = EXAMPLES;
   if (useStaged) {
     const stagedModule = (await import(
