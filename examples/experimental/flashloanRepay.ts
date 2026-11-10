@@ -50,11 +50,11 @@ export const buildTrivialFlashloanRepay = ({
     },
   });
 
-  builder.lifi.flashloanRepay('repay', {
+  builder.experimental.lifi.flashloanRepay('repay', {
     bind: { funds: builder.inputs.borrowed },
   });
 
-  builder.lifi.flashloanRepay('repayFee', {
+  builder.experimental.lifi.flashloanRepay('repayFee', {
     bind: { funds: builder.inputs.feeTopUp },
   });
 
@@ -68,7 +68,7 @@ export const buildTrivialFlashloanRepay = ({
   const request = sdk.request(flow, {
     signer: owner,
     inputs: {
-      borrowed: materialisers.flashloan({
+      borrowed: materialisers.experimental.flashloan({
         providerKind: 'aave-v3',
         amount,
         maxFee,
@@ -125,7 +125,7 @@ export const buildSwapAndRepay = ({
     },
   });
 
-  builder.lifi.flashloanRepay('repay', {
+  builder.experimental.lifi.flashloanRepay('repay', {
     bind: { funds: backToUsdc.amountOut },
   });
 
@@ -134,7 +134,7 @@ export const buildSwapAndRepay = ({
   const request = sdk.request(flow, {
     signer: owner,
     inputs: {
-      borrowed: materialisers.flashloan({
+      borrowed: materialisers.experimental.flashloan({
         providerKind: 'aave-v3',
         amount,
       }),

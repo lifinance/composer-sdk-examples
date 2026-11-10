@@ -4,9 +4,9 @@ Runnable examples for [`@lifi/composer-sdk`](https://www.npmjs.com/package/@lifi
 
 These examples are ported from the SDK's own `src/examples/` directory so they can be run directly, without digging through `node_modules`. Each example builds a `ComposeCompileRequest`; the runner sends it to a live Compose backend and prints the request and result.
 
-Tracks the server-compatible pair pinned in `package.json`: `@lifi/composer-sdk@0.13.0` and `@lifi/compose-spec@0.13.0`. On 2026-10-28, the production host `https://composer.li.quest` reported `x-lifi-composer-version: 0.13.0`. Requires Node.js >= 24, matching the SDK.
+Tracks the pair pinned in `package.json`: `@lifi/composer-sdk@0.16.0` and `@lifi/compose-spec@0.16.0`. Requires Node.js >= 24, matching the SDK.
 
-The npm tags are not a compatibility guarantee: on that date `next` was 0.14.0 and `latest` was 0.6.0. Neither matches the production server's minor version. Keep the explicit pins; before upgrading, check the target backend's `x-lifi-composer-version` response header and choose the matching SDK/spec pair.
+The SDK refuses a compile answered by a backend on an older minor version (`server_outdated`), so a live run needs a backend whose `x-lifi-composer-version` response header reports 0.16.x. The npm `latest` and `next` tags are not a compatibility guarantee: either can point at a different minor version than the production server. Keep the explicit pins; before upgrading, check the target backend's `x-lifi-composer-version` header and choose the matching SDK/spec pair.
 
 ## Setup
 
@@ -16,7 +16,7 @@ npm install
 
 This pulls in `@lifi/composer-sdk` and its `@lifi/compose-spec` peer dependency (pinned in lockstep), plus `tsx` to run the TypeScript directly.
 
-When copying an example into your own project, install the version pinned in `package.json` rather than a moving dist-tag, e.g. `npm install @lifi/composer-sdk@0.13.0 @lifi/compose-spec@0.13.0`. The npm `latest` tag can lag behind and may not include every op these examples use.
+When copying an example into your own project, install the version pinned in `package.json` rather than a moving dist-tag, e.g. `npm install @lifi/composer-sdk@0.16.0 @lifi/compose-spec@0.16.0`. The npm `latest` tag can lag behind and may not include every op these examples use.
 
 ## Configuration
 
@@ -125,13 +125,25 @@ swap's price: compare the swap's minimum output
 (`settlements.settle.escrow.floor`) with an independent WETH price before
 signing.
 
-### Flashloan examples (staging SDK only)
+### Experimental flashloan examples
 
-These live under `examples/staged/`. They borrow through the `flashloan`
-materialiser and earmark the repayment with `lifi.flashloanRepay`. Both exist
-only in the staging build of the SDK, so the pinned 0.13.0 pair cannot run
-them. They track the flashloan wire of `@lifi/composer-sdk` 0.16
-([Yggdrasil#2444](https://github.com/lifinance/Yggdrasil/pull/2444)):
+These live under `examples/experimental/`. They borrow through
+`materialisers.experimental.flashloan` and earmark the repayment with
+`builder.experimental.lifi.flashloanRepay`. The SDK ships both in the default
+install, under its `experimental` namespace (the SDK README's "Experimental
+definitions" section):
+
+- An experimental definition carries no compatibility guarantee. Any SDK
+  release, a patch included, can change its arguments, rename it, or move it
+  to its stable location (`builder.lifi.flashloanRepay`). A move leaves no
+  alias, so these examples stop compiling until they follow it.
+- A backend runs an experimental definition only when its deployment enables
+  it. A backend that does not enable flashloans answers the compile with
+  `validation_error`: `Unknown op: lifi.flashloanRepay` or
+  `Unknown materialiser 'flashloan' for input '…'`. `sdk.client.getManifest()`
+  lists what a backend accepts.
+
+The flashloan wire:
 
 - A flow compiles to one `execute`. The flashloan runtime borrows each leg into
   the proxy before the program runs and repays every lender after it. The same
@@ -157,21 +169,15 @@ them. They track the flashloan wire of `@lifi/composer-sdk` 0.16
 `flashloanRepay.ts` also exports `buildSwapAndRepay`, a reference-only
 variant that repays the leg from a swap round trip.
 
-To run them, install the staging pair over the pinned one, then use the
-staged scripts:
+The runner lists them with the other examples:
 
 ```bash
-npm run staged:install   # installs @lifi/composer-sdk@staging and @lifi/compose-spec@staging, lockfiles untouched
-npm run typecheck:staged
-LIFI_API_KEY=your-key npm run example:staged debt-migration
-npm ci                   # restore the pinned 0.13.0 pair
+LIFI_API_KEY=your-key COMPOSER_BASE_URL=https://your-backend npm run example debt-migration
 ```
 
-A live compile also needs a backend that serves the flashloan wire and has
-the v1.3 flashloan contracts deployed on Base. Until then the backend answers
-422 `flashloan_unauthorized`. The staging SDK must also pass the backend's
-version check: a staging SDK ahead of the backend's version gets
-`server_outdated`.
+A live compile needs a backend that enables flashloans and has the v1.3
+flashloan contracts deployed on Base. A backend without those contracts
+answers 422 `flashloan_unauthorized`.
 
 ## Project layout
 
@@ -181,7 +187,7 @@ examples/
   config.ts     # shared config (base URL, API key, sample addresses)
   loadEnv.ts    # loads .env (if present) before config is read
   <example>.ts  # one file per example, each exporting a build* function
-  staged/       # flashloan examples (staging SDK only) + their registry
+  experimental/ # flashloan examples; use the SDK's experimental namespace
 ```
 
 Each example exports a `build*` function. The runner takes the returned `request` (`{ flow, run }`), prints it, then calls `sdk.client.compile`. Building the request stays local; compile calls the backend but does not sign or broadcast a transaction. Read any example file alongside its row in the table above to see the SDK API in use.
@@ -192,10 +198,7 @@ Each example exports a `build*` function. The runner takes the returned `request
 npm run typecheck
 ```
 
-The type check covers the production examples only. `examples/staged/` is
-excluded because `lifi.flashloanRepay` and `materialisers.flashloan` exist only
-in the staging SDK. After `npm run staged:install`, `npm run typecheck:staged`
-checks every example, the flashloan ones included.
+The type check covers every example, the experimental ones included.
 
 Run `npm test` for local swap-and-zap contract checks: request construction,
 API-key header placement, success/partial response decoding, authentication

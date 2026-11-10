@@ -5,12 +5,13 @@ Each file in `examples/` exports a `build*` function that returns a
 `ComposeCompileRequest` (`{ flow, run }`). The runner (`examples/run.ts`) prints that
 request and sends it to a live Compose backend through `sdk.client.compile`. The
 runner never signs or broadcasts a transaction. `@lifi/composer-sdk` and
-`@lifi/compose-spec` are pinned together at `0.13.0` to match the production
-server's `x-lifi-composer-version`. Keep those pins unless you also check the
-target backend's version header. Do not switch the pins to the `latest`,
-`next` or `@staging` dist-tags. README.md explains why. The flashloan examples
-in `examples/staged/` need the staging SDK; `npm run staged:install` puts it in
-`node_modules` without changing `package.json`, and `npm ci` restores the pins.
+`@lifi/compose-spec` are pinned together at `0.16.0`; a live compile needs a
+backend whose `x-lifi-composer-version` reports 0.16.x. Keep those pins unless
+you also check the target backend's version header. Do not switch the pins to
+the `latest` or `next` dist-tags. README.md explains why. The flashloan
+examples in `examples/experimental/` call the SDK's experimental namespace
+(`builder.experimental.*`, `materialisers.experimental.*`), which carries no
+compatibility guarantee: an SDK bump can rename or move those calls.
 
 ## Commands
 
@@ -20,11 +21,9 @@ The repo has no `justfile`. The contract verbs are npm scripts from
 | Verb      | Command                      | Notes                                                        |
 | --------- | ---------------------------- | ------------------------------------------------------------ |
 | setup     | `npm install`                | Uses `package-lock.json`. A `yarn.lock` also exists.          |
-| typecheck | `npm run typecheck`          | `tsc --noEmit` over `examples/`. Skips `examples/staged/`.    |
-| typecheck (staged) | `npm run typecheck:staged` | `tsc -p tsconfig.staged.json`, `examples/staged/` included. Needs `npm run staged:install` first. |
+| typecheck | `npm run typecheck`          | `tsc --noEmit` over `examples/`, `examples/experimental/` included. |
 | test      | `npm test`                   | `tsx verify/contract.ts`. Uses mocked HTTP and makes no network calls. |
 | run       | `npm run example <name>`     | Calls the live backend and needs `LIFI_API_KEY`. Run it without a name to list the examples. |
-| run (staged) | `npm run example:staged <name>` | Adds the flashloan examples. Needs the staging SDK and a backend with the v1.3 flashloan contracts on Base. |
 
 The repo has no lint or format script. Before you finish a change, run
 `npm run typecheck` and `npm test`.
@@ -46,8 +45,8 @@ examples/
   loadEnv.ts     # loads .env before config is read
   format.ts      # console output formatting
   <example>.ts   # one example per file, each exporting a build* function
-  staged/        # flashloan examples; need lifi.flashloanRepay and the flashloan
-                 # materialiser, which only the staging SDK generates
+  experimental/  # flashloan examples; use the SDK's experimental namespace and
+                 # need a backend that enables flashloans
 verify/
   contract.ts    # local contract checks (request shape, API-key header, response decoding, errors)
 ```

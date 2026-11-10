@@ -238,13 +238,13 @@ export const buildAaveToMorphoDebtMigrationWithSwapExactOut = ({
 
   // Earmark the exact BUY output for the USDC flashloan leg. One repay node:
   // `amountOut` is the leg's whole reserve.
-  builder.lifi.flashloanRepay('repay-debt-flashloan', {
+  builder.experimental.lifi.flashloanRepay('repay-debt-flashloan', {
     bind: { funds: buyUsdc.amountOut },
   });
 
   // Earmark the Aave withdrawal for the WETH flashloan leg. Balancer V2
   // charges no fee, so the withdrawn principal alone covers the leg.
-  builder.lifi.flashloanRepay('repay-collateral-flashloan', {
+  builder.experimental.lifi.flashloanRepay('repay-collateral-flashloan', {
     bind: { funds: withdrawFromAave.amountOut },
   });
 
@@ -286,12 +286,12 @@ export const buildAaveToMorphoDebtMigrationWithSwapExactOut = ({
           BigInt(collateralAmount) + AAVE_WITHDRAW_ROUNDING_BUFFER
         ).toString() as `${bigint}`,
       }),
-      debtFlashloan: materialisers.flashloan({
+      debtFlashloan: materialisers.experimental.flashloan({
         providerKind: 'aave-v3',
         amount: debtAmount,
         maxFee,
       }),
-      collateralFlashloan: materialisers.flashloan({
+      collateralFlashloan: materialisers.experimental.flashloan({
         providerKind: 'balancer-v2',
         amount: collateralAmount,
       }),

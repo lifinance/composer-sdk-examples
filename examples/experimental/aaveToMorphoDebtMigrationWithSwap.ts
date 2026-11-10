@@ -197,13 +197,13 @@ export const buildAaveToMorphoDebtMigrationWithSwap = ({
 
   // Earmark the swap output for the USDC flashloan leg. The sweep returns
   // whatever it holds above the leg's reserve to the signer.
-  builder.lifi.flashloanRepay('repay-debt-flashloan', {
+  builder.experimental.lifi.flashloanRepay('repay-debt-flashloan', {
     bind: { funds: swapDebt.amountOut },
   });
 
   // Earmark the Aave withdrawal for the WETH flashloan leg. Balancer V2
   // charges no fee, so the withdrawn principal alone covers the leg.
-  builder.lifi.flashloanRepay('repay-collateral-flashloan', {
+  builder.experimental.lifi.flashloanRepay('repay-collateral-flashloan', {
     bind: { funds: withdrawFromAave.amountOut },
   });
 
@@ -215,11 +215,11 @@ export const buildAaveToMorphoDebtMigrationWithSwap = ({
       initialCollateral: materialisers.directDeposit({
         amount: collateralAmount,
       }),
-      debtFlashloan: materialisers.flashloan({
+      debtFlashloan: materialisers.experimental.flashloan({
         providerKind: 'aave-v3',
         amount: debtFlashloanAmount,
       }),
-      collateralFlashloan: materialisers.flashloan({
+      collateralFlashloan: materialisers.experimental.flashloan({
         providerKind: 'balancer-v2',
         amount: collateralFlashloanAmount,
       }),

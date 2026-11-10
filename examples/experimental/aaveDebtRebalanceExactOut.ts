@@ -232,7 +232,7 @@ export const buildAaveDebtRebalanceExactOut = ({
   // Earmark the exact BUY output for the USDC flashloan leg. One repay node:
   // `amountOut` is the leg's whole reserve. The op moves nothing; the runtime
   // repays Aave from the proxy after the program.
-  builder.lifi.flashloanRepay('repay-debt-flashloan', {
+  builder.experimental.lifi.flashloanRepay('repay-debt-flashloan', {
     bind: { funds: buyUsdc.amountOut },
   });
 
@@ -299,7 +299,7 @@ export const buildAaveDebtRebalanceExactOut = ({
       initialCollateral: materialisers.directDeposit({
         amount: collateralAmount,
       }),
-      debtFlashloan: materialisers.flashloan({
+      debtFlashloan: materialisers.experimental.flashloan({
         providerKind: 'aave-v3',
         amount: debtAmount,
         maxFee,
