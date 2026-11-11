@@ -1,4 +1,8 @@
-import type { ComposeCompileRequest, Flow } from '@lifi/compose-spec';
+import {
+  type ComposeCompileRequest,
+  flashloanMaxFee,
+  type Flow,
+} from '@lifi/compose-spec';
 
 import { createComposeSdk, materialisers, resources } from '@lifi/composer-sdk';
 import type { Address } from '@lifi/composer-sdk';
@@ -36,22 +40,13 @@ const MORPHO_WETH_EURC_MARKET = {
   lltv: WETH_EURC_LLTV,
 };
 
-// Aave V3 flashloan premium (FLASHLOAN_PREMIUM_TOTAL) = 5 bps of principal.
-// Mirrors the builtins package's `computeDefaultFee('aave-v3', amount)`,
-// inlined so the example stays free of compose-internals imports (the SDK must
-// not cross the manifest boundary into the builtins package). Override if the
-// pool's premium has changed on-chain.
-const AAVE_V3_FEE_BPS = 5n;
-const BPS_DENOMINATOR = 10_000n;
-const computeAaveV3Fee = (principal: bigint): bigint =>
-  (principal * AAVE_V3_FEE_BPS) / BPS_DENOMINATOR;
-
 // Aave's aToken round-trips through ray math: withdrawing freshly-supplied
 // collateral returns up to 1 wei LESS than supplied. The Balancer V2 collateral
-// flashloan, however, must be repaid to the exact wei of its principal. To keep
-// the flashloan (and the migrated Morpho collateral) at the full
-// `collateralAmount`, we supply a few extra wei to Aave so the withdrawal always
-// covers the repay. The tiny remainder is swept back to the signer.
+// flashloan charges no fee, but the proxy must still hold its full principal
+// when the runtime settles. To keep the flashloan (and the migrated Morpho
+// collateral) at the full `collateralAmount`, we supply a few extra wei to Aave
+// so the withdrawal always covers the principal. The tiny remainder is swept
+// back to the signer.
 const AAVE_WITHDRAW_ROUNDING_BUFFER = 2n;
 
 // Source-cap slippage on the EURC → USDC BUY, in basis points. This bounds how
@@ -68,13 +63,13 @@ export interface AaveToMorphoDebtMigrationWithSwapExactOutInput {
   /**
    * EURC to borrow from Morpho (6 decimals). Sized as a *generous upper bound*
    * — large enough that the exact-output BUY can always produce
-   * `debtAmount + aaveV3Fee` USDC even after `maxSlippageBps` of source slippage
+   * `debtAmount + maxFee` USDC even after `maxSlippageBps` of source slippage
    * (i.e. `morphoBorrowAmount > maxAmountIn`). The BUY pulls only what it needs;
    * the unspent EURC is repaid straight back into the freshly-minted Morpho
    * debt, so the *net* migrated debt is the original Aave debt (in EURC terms)
    * plus only the slippage/fee actually consumed — NOT the full upper bound.
    * Note: EUR/USD is not 1:1 — size off a live BUY quote, e.g.
-   *   morphoBorrowAmount ≈ ceil((debtAmount + aaveV3Fee) * eurcPerUsdc * (1 + slippage))
+   *   morphoBorrowAmount ≈ ceil((debtAmount + maxFee) * eurcPerUsdc * (1 + slippage))
    */
   readonly morphoBorrowAmount: `${bigint}`;
   /** Optional source-cap slippage on the BUY, in bps (default 100 = 1%). */
@@ -97,11 +92,11 @@ export interface AaveToMorphoDebtMigrationWithSwapExactOutInput {
  * variant): there the author must over-size the Morpho borrow so a slippage-
  * adjusted *minimum* output still clears the fixed flashloan need, and the
  * buffer lands on the borrow leg as lasting debt. Here `paraswap.buy` produces
- * *exactly* `debtAmount + aaveV3Fee` USDC, pulls only the EURC it needs, and the
- * genuinely-unspent EURC is refunded to the proxy and surfaced as `unspentIn` —
- * which we route straight into a capped `morphoBlue.repay` to unwind the
- * over-borrow. Net migrated debt = original debt + only the consumed
- * slippage/fee, not a standing buffer.
+ * *exactly* `debtAmount + maxFee` USDC, pulls only the EURC it needs, and the
+ * EURC it did not sell (Augustus's refund plus the headroom above the swap cap)
+ * stays on the proxy and is surfaced as `unspentIn` — which we route straight
+ * into a capped `morphoBlue.repay` to unwind the over-borrow. Net migrated
+ * debt = original debt + only the consumed slippage/fee, not a standing buffer.
  *
  * Phase 1 — provision the source position on Aave V3:
  * - User direct-deposits WETH.
@@ -116,16 +111,19 @@ export interface AaveToMorphoDebtMigrationWithSwapExactOutInput {
  * - `lifi.zap` withdraws the freed WETH from Aave (aBasWETH → WETH).
  * - `morphoBlue.supplyCollateral` deposits flashloan #2's WETH into Morpho.
  * - `morphoBlue.borrow` mints a *capped* `morphoBorrowAmount` of EURC.
- * - `paraswap.buy` buys *exactly* `debtAmount + aaveV3Fee` USDC with the
- *   borrowed EURC. `amountOut` is the exact figure that settles the USDC
- *   flashloan leg; `unspentIn` is the refunded, unspent EURC.
- * - `lifi.flashloanRepay` settles the USDC leg from `buy.amountOut` (no
- *   feeBuffer: `amountOut == principal + fee` by construction) and the WETH leg
- *   from the Aave withdrawal (Balancer V2 charges no fee).
- * - `morphoBlue.repay(mode: 'max')` repays the unspent EURC (`buy.unspentIn`)
- *   straight back into the freshly-minted Morpho debt, unwinding the borrow
- *   buffer. Any genuine over-repay surfaces through the repay op's `residual`,
- *   which `sweepTo` forwards to the signer.
+ * - `paraswap.buy` buys *exactly* `debtAmount + maxFee` USDC with the
+ *   borrowed EURC. `amountOut` is the USDC leg's reserve (principal plus the
+ *   fee cap); `unspentIn` is every borrowed EURC the swap did not sell,
+ *   including the headroom above the swap cap.
+ * - Two `lifi.flashloanRepay` ops earmark each leg's funds: the USDC leg's from
+ *   `buy.amountOut` (`amountOut` is the whole reserve), the WETH leg's from
+ *   the Aave withdrawal (Balancer V2 charges no fee). They move nothing: the
+ *   funds stay in the proxy and the flashloan runtime repays both lenders
+ *   after the program.
+ * - `morphoBlue.repay(mode: 'exact')` repays the proxy's live EURC balance (the
+ *   same EURC `buy.unspentIn` names) straight back into the freshly-minted
+ *   Morpho debt, unwinding the borrow buffer. Any genuine over-repay surfaces
+ *   through the repay op's `residual`, which `sweepTo` forwards to the signer.
  *
  * After execution the signer holds a Morpho Blue position with
  * `collateralAmount` WETH collateral and EURC debt equal to the original Aave
@@ -146,11 +144,17 @@ export const buildAaveToMorphoDebtMigrationWithSwapExactOut = ({
 } => {
   const sdk = createComposeSdk({ baseUrl: BASE_URL, apiKey: API_KEY });
 
-  // The USDC the BUY must produce: the flashloan principal plus the Aave V3
-  // flashloan premium. This is exactly what settles the debt flashloan leg.
-  const exactUsdcOut = (
-    BigInt(debtAmount) + computeAaveV3Fee(BigInt(debtAmount))
-  ).toString() as `${bigint}`;
+  // The USDC the BUY must produce: the flashloan principal plus the leg's
+  // `maxFee`, the default fee cap (5 bps of the principal, rounded up, since
+  // Aave rounds its premium half-up). This is the leg's reserve: the proxy
+  // keeps it through the program and the runtime repays Aave from it. The
+  // request states the same `maxFee` on the leg, so client and server agree
+  // on the cap.
+  const maxFee = flashloanMaxFee({
+    providerKind: 'aave-v3',
+    amount: debtAmount,
+  });
+  const exactUsdcOut = (BigInt(debtAmount) + maxFee).toString() as `${bigint}`;
 
   const builder = sdk.flow(8453, {
     name: 'aave-to-morpho-debt-migration-with-swap-exact-out',
@@ -219,8 +223,7 @@ export const buildAaveToMorphoDebtMigrationWithSwapExactOut = ({
 
   // Exact-output BUY: produce EXACTLY `exactUsdcOut` USDC from the borrowed
   // EURC, pulling only the EURC needed and refunding the rest to the proxy
-  // (surfaced as `unspentIn`). `amountOut` is the exact figure that settles the
-  // USDC flashloan leg.
+  // (surfaced as `unspentIn`). `amountOut` is the USDC leg's whole reserve.
   const buyUsdc = builder.paraswap.buy('buy-usdc-exact', {
     bind: { amountIn: morphoBorrow.borrowed },
     config: {
@@ -233,30 +236,27 @@ export const buildAaveToMorphoDebtMigrationWithSwapExactOut = ({
     },
   });
 
-  // Settle the USDC flashloan leg with the exact BUY output. No feeBuffer:
-  // `amountOut == principal + fee` by construction.
-  builder.lifi.flashloanRepay('repay-debt-flashloan', {
+  // Earmark the exact BUY output for the USDC flashloan leg. One repay node:
+  // `amountOut` is the leg's whole reserve.
+  builder.experimental.lifi.flashloanRepay('repay-debt-flashloan', {
     bind: { funds: buyUsdc.amountOut },
-    config: { leg: 'debtFlashloan' },
   });
 
-  // Settle the WETH flashloan leg with the Aave withdrawal. Balancer V2 charges
-  // no fee, so the withdrawn principal alone covers the leg.
-  builder.lifi.flashloanRepay('repay-collateral-flashloan', {
+  // Earmark the Aave withdrawal for the WETH flashloan leg. Balancer V2
+  // charges no fee, so the withdrawn principal alone covers the leg.
+  builder.experimental.lifi.flashloanRepay('repay-collateral-flashloan', {
     bind: { funds: withdrawFromAave.amountOut },
-    config: { leg: 'collateralFlashloan' },
   });
 
   // Unwind the over-borrow: repay the proxy's FULL residual EURC back into the
   // freshly-minted Morpho debt, so the migrated debt equals exactly the EURC the
-  // swap consumed. We read the live EURC balance rather than binding
-  // `buy.unspentIn`: unspentIn is only Augustus's refund (cap − used), but the
-  // proxy ALSO still holds the headroom we over-borrowed above the swap cap
-  // (morphoBorrowAmount − cap), which Augustus never pulled. The live balance
-  // captures both, leaving zero idle EURC. mode: 'exact' pulls precisely this
-  // balance; mode: 'max' would repay the FULL Morpho debt in shares mode
-  // (reading Position.borrowShares) and pull far more EURC than the residual,
-  // reverting with "transfer amount exceeds balance".
+  // swap consumed. The live EURC balance equals `buy.unspentIn`
+  // (morphoBorrowAmount − sold): Augustus's refund below the cap plus the
+  // headroom we over-borrowed above it (morphoBorrowAmount − cap), which
+  // Augustus never pulled. Repaying it leaves zero idle EURC. mode: 'exact'
+  // pulls precisely this balance; mode: 'max' would repay the FULL Morpho debt
+  // in shares mode (reading Position.borrowShares) and pull far more EURC than
+  // the residual, reverting with "transfer amount exceeds balance".
   const eurcResidual = builder.core.balanceOf('read-eurc-residual', {
     bind: {},
     config: { token: BASE_EURC },
@@ -279,18 +279,19 @@ export const buildAaveToMorphoDebtMigrationWithSwapExactOut = ({
     signer: owner,
     inputs: {
       // Supply a few extra wei over the flashloaned `collateralAmount` so the
-      // Aave withdrawal (which rounds down by up to 1 wei) still fully covers
-      // the exact-principal Balancer collateral-flashloan repayment.
+      // Aave withdrawal (which rounds down by up to 1 wei) still covers the
+      // Balancer collateral-flashloan principal at settlement.
       initialCollateral: materialisers.directDeposit({
         amount: (
           BigInt(collateralAmount) + AAVE_WITHDRAW_ROUNDING_BUFFER
         ).toString() as `${bigint}`,
       }),
-      debtFlashloan: materialisers.flashloan({
+      debtFlashloan: materialisers.experimental.flashloan({
         providerKind: 'aave-v3',
         amount: debtAmount,
+        maxFee,
       }),
-      collateralFlashloan: materialisers.flashloan({
+      collateralFlashloan: materialisers.experimental.flashloan({
         providerKind: 'balancer-v2',
         amount: collateralAmount,
       }),

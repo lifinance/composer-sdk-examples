@@ -14,6 +14,5 @@
     "forceConsistentCasingInFileNames": true,
     "noEmit": true
   },
-  "include": ["examples"],
-  "exclude": ["examples/staged"]
+  "include": ["examples"]
 }

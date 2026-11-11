@@ -1,4 +1,8 @@
-import type { ComposeCompileRequest, Flow } from '@lifi/compose-spec';
+import {
+  type ComposeCompileRequest,
+  flashloanMaxFee,
+  type Flow,
+} from '@lifi/compose-spec';
 
 import { createComposeSdk, materialisers, resources } from '@lifi/composer-sdk';
 import type { Address } from '@lifi/composer-sdk';
@@ -23,16 +27,6 @@ const A_BAS_WETH = '0xD4a0e0b9149BCee3C920d2E00b5dE09138fd8bb7';
 const VDEBT_BAS_USDC = '0x59dca05b6c26dbd64b5381374aAaC5CD05644C28';
 const VDEBT_BAS_EURC = '0x03D01595769333174036832e18fA2f17C74f8161';
 
-// Aave V3 flashloan premium (FLASHLOAN_PREMIUM_TOTAL) = 5 bps of principal.
-// Mirrors the builtins package's `computeDefaultFee('aave-v3', amount)`,
-// inlined so the example stays free of compose-internals imports (the SDK must
-// not cross the manifest boundary into the builtins package). Override if the
-// pool's premium has changed on-chain.
-const AAVE_V3_FEE_BPS = 5n;
-const BPS_DENOMINATOR = 10_000n;
-const computeAaveV3Fee = (principal: bigint): bigint =>
-  (principal * AAVE_V3_FEE_BPS) / BPS_DENOMINATOR;
-
 // Source-cap slippage on the EURC → USDC BUY, in basis points. This bounds how
 // much extra EURC Augustus may pull above the quoted source before refunding.
 // `newDebtBorrowAmount` must exceed the resulting `maxAmountIn`.
@@ -55,13 +49,13 @@ export interface AaveDebtRebalanceExactOutInput {
   /**
    * EURC to borrow as the *new* debt (6 decimals). Sized as a *generous upper
    * bound* — large enough that the exact-output BUY can always produce
-   * `debtAmount + aaveV3Fee` USDC even after `maxSlippageBps` of source slippage
+   * `debtAmount + maxFee` USDC even after `maxSlippageBps` of source slippage
    * (i.e. `newDebtBorrowAmount > maxAmountIn`). The BUY pulls only what it needs;
    * the unspent EURC is repaid straight back into the freshly-minted EURC debt,
    * so the *net* new debt is the original USDC debt (in EURC terms) plus only
    * the slippage/fee actually consumed — NOT the full upper bound.
    * Note: EUR/USD is not 1:1 — size off a live BUY quote, e.g.
-   *   newDebtBorrowAmount ≈ ceil((debtAmount + aaveV3Fee) * eurcPerUsdc * (1 + slippage))
+   *   newDebtBorrowAmount ≈ ceil((debtAmount + maxFee) * eurcPerUsdc * (1 + slippage))
    */
   readonly newDebtBorrowAmount: `${bigint}`;
   /** Optional source-cap slippage on the BUY, in bps (default 100 = 1%). */
@@ -93,8 +87,8 @@ export interface AaveDebtRebalanceExactOutInput {
  * borrow APR (~3.87%) sits below USDC's (~4.28%), and a EUR-based borrower may
  * also want the liability denominated in EUR to match income/assets (removing
  * USD/EUR FX risk on the debt). The reward is the APR delta over the holding
- * period; the cost is the Aave flashloan premium plus the realised swap
- * slippage on the consumed notional only.
+ * period; the cost is the Aave flashloan premium (5 bps) plus the realised
+ * swap slippage on the consumed notional only.
  *
  * Phase 1 — provision the starting position on Aave V3 (illustrative; omit in
  * production where the position already exists):
@@ -110,15 +104,20 @@ export interface AaveDebtRebalanceExactOutInput {
  *   Pool clamps to the outstanding debt exactly, any cap residual is swept.
  * - `aave.borrow` mints a *capped* (generously over-sized) `newDebtBorrowAmount`
  *   of EURC against the same, still-supplied WETH collateral.
- * - `paraswap.buy` buys *exactly* `debtAmount + aaveV3Fee` USDC with the borrowed
- *   EURC, pulling only the EURC needed. `amountOut` is the exact figure that
- *   settles the USDC flashloan leg; `unspentIn` is the refunded, unspent EURC.
- * - `lifi.flashloanRepay` settles the USDC leg from `buy.amountOut` (no
- *   feeBuffer: `amountOut == principal + fee` by construction).
- * - `aave.repay(mode: 'max')` repays the unspent EURC (`buy.unspentIn`) straight
- *   back into the freshly-minted EURC debt, unwinding the borrow buffer. Any
- *   genuine over-repay surfaces through the repay op's `residual`, swept to the
- *   signer.
+ * - `paraswap.buy` buys *exactly* `debtAmount + maxFee` USDC with the borrowed
+ *   EURC, pulling only the EURC needed. `amountOut` is the leg's reserve: the
+ *   principal plus the fee cap the flight allows Aave to charge; `unspentIn` is
+ *   every borrowed EURC the swap did not sell, including the headroom above the
+ *   swap cap.
+ * - `lifi.flashloanRepay` earmarks `buy.amountOut` for the USDC leg
+ *   (`amountOut` is the whole reserve). It moves nothing: the USDC stays in
+ *   the proxy, and the flashloan runtime repays Aave after the program.
+ * - `aave.repay(mode: 'exact')` repays the proxy's live EURC balance (the same
+ *   EURC `buy.unspentIn` names) straight back into the freshly-minted EURC
+ *   debt, unwinding the borrow buffer. Any genuine over-repay surfaces through
+ *   the repay op's `residual`, swept to the signer.
+ * - `core.transfer` pays the USDC loan proceeds to the signer: the live USDC
+ *   balance minus the reserve the runtime repays Aave from.
  *
  * After execution the signer holds the same WETH collateral on Aave V3 with EURC
  * debt equal to the original USDC debt (in EUR terms) plus only the consumed
@@ -139,11 +138,17 @@ export const buildAaveDebtRebalanceExactOut = ({
 } => {
   const sdk = createComposeSdk({ baseUrl: BASE_URL, apiKey: API_KEY });
 
-  // The USDC the BUY must produce: the flashloan principal plus the Aave V3
-  // flashloan premium. This is exactly what settles the debt flashloan leg.
-  const exactUsdcOut = (
-    BigInt(debtAmount) + computeAaveV3Fee(BigInt(debtAmount))
-  ).toString() as `${bigint}`;
+  // The USDC the BUY must produce: the flashloan principal plus the leg's
+  // `maxFee`, the default fee cap (5 bps of the principal, rounded up, since
+  // Aave rounds its premium half-up). This is the leg's reserve: the proxy
+  // keeps it through the program and the runtime repays Aave from it. The
+  // request states the same `maxFee` on the leg, so client and server agree
+  // on the cap.
+  const maxFee = flashloanMaxFee({
+    providerKind: 'aave-v3',
+    amount: debtAmount,
+  });
+  const exactUsdcOut = (BigInt(debtAmount) + maxFee).toString() as `${bigint}`;
 
   const builder = sdk.flow(8453, {
     name: 'aave-debt-rebalance-usdc-to-eurc-exact-out',
@@ -211,8 +216,7 @@ export const buildAaveDebtRebalanceExactOut = ({
 
   // Exact-output BUY: produce EXACTLY `exactUsdcOut` USDC from the borrowed
   // EURC, pulling only the EURC needed and refunding the rest to the proxy
-  // (surfaced as `unspentIn`). `amountOut` is the exact figure that settles the
-  // USDC flashloan leg.
+  // (surfaced as `unspentIn`). `amountOut` is the USDC leg's whole reserve.
   const buyUsdc = builder.paraswap.buy('buy-usdc-exact', {
     bind: { amountIn: borrowEurc.borrowed },
     config: {
@@ -225,19 +229,18 @@ export const buildAaveDebtRebalanceExactOut = ({
     },
   });
 
-  // Settle the USDC flashloan leg with the exact BUY output. No feeBuffer:
-  // `amountOut == principal + fee` by construction.
-  builder.lifi.flashloanRepay('repay-debt-flashloan', {
+  // Earmark the exact BUY output for the USDC flashloan leg. One repay node:
+  // `amountOut` is the leg's whole reserve. The op moves nothing; the runtime
+  // repays Aave from the proxy after the program.
+  builder.experimental.lifi.flashloanRepay('repay-debt-flashloan', {
     bind: { funds: buyUsdc.amountOut },
-    config: { leg: 'debtFlashloan' },
   });
 
   // Unwind the over-borrow: repay the proxy's FULL residual EURC back into the
   // freshly-minted EURC debt, so the new debt equals exactly the EURC the swap
-  // consumed. We read the live EURC balance rather than binding `buy.unspentIn`:
-  // unspentIn is only Augustus's refund (cap − used), but the proxy ALSO still
-  // holds the headroom we over-borrowed above the swap cap (borrow − cap), which
-  // Augustus never pulled. The live balance captures both, leaving zero idle.
+  // consumed. The live EURC balance equals `buy.unspentIn` (borrow − sold):
+  // Augustus's refund below the cap plus the headroom we over-borrowed above it
+  // (borrow − cap), which Augustus never pulled. Repaying it leaves zero idle.
   // mode: 'exact' pulls precisely this balance (Aave clamps to min(balance,
   // debt)); mode: 'max' would pass type(uint256).max and try to pull the whole
   // outstanding debt, far exceeding the residual on the proxy, and revert.
@@ -253,12 +256,17 @@ export const buildAaveDebtRebalanceExactOut = ({
     config: { pool: AAVE_V3_POOL_BASE, mode: 'exact' },
   });
 
-  // Forward the genuinely-loose token — the residual USDC loan proceeds — to the
-  // signer. We read the proxy's LIVE USDC balance rather than the fixed borrowed
-  // amount: Aave's `mode: 'max'` USDC-debt repay overshoots the borrow by up to
-  // 1 wei (ray-math round-trip), so the proxy ends a wei short of `borrowed` —
+  // Forward the genuinely-loose USDC — the loan proceeds — to the signer. We
+  // read the proxy's LIVE USDC balance rather than the fixed borrowed amount:
+  // Aave's `mode: 'max'` USDC-debt repay overshoots the borrow by up to 1 wei
+  // (ray-math round-trip), so the proxy ends a wei short of `borrowed` —
   // transferring a fixed amount would revert "transfer amount exceeds balance".
-  // The live balance always moves exactly what is there.
+  // The live balance also holds the flashloan reserve (`exactUsdcOut`), which
+  // must stay in the proxy for the runtime to repay Aave, so the split keeps
+  // `min(balance, reserve)` as its head and pays out only the tail. Paying out
+  // the whole balance would leave the proxy short at settlement: the flight's
+  // settlement reverts `FlashloanRepaymentShort`, which compose reports as a
+  // 400 `validation_error` with a `shortfall`.
   //
   // We deliberately do NOT use a blanket `sweepTo`: the only other proxy-held
   // balance is the aBasWETH collateral position, which cannot be transferred
@@ -268,9 +276,16 @@ export const buildAaveDebtRebalanceExactOut = ({
     bind: {},
     config: { token: BASE_USDC },
   });
+  const { tail: usdcProceeds } = builder.core.splitAt(
+    'exclude-flashloan-reserve',
+    {
+      bind: { source: usdcResidual.balance },
+      config: { amount: exactUsdcOut },
+    },
+  );
   builder.core.transfer('payout-borrow-proceeds', {
     bind: {
-      amount: usdcResidual.balance,
+      amount: usdcProceeds,
       recipient: builder.context.sender,
     },
     config: {},
@@ -284,9 +299,10 @@ export const buildAaveDebtRebalanceExactOut = ({
       initialCollateral: materialisers.directDeposit({
         amount: collateralAmount,
       }),
-      debtFlashloan: materialisers.flashloan({
+      debtFlashloan: materialisers.experimental.flashloan({
         providerKind: 'aave-v3',
         amount: debtAmount,
+        maxFee,
       }),
     },
     // No blanket `sweepTo`: the resulting aBasWETH collateral position stays on
