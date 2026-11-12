@@ -27,7 +27,7 @@ const amountIn = request.run.inputs['amountIn'] as { kind?: string; amount?: str
 check('amountIn is directDeposit', amountIn?.kind === 'directDeposit', String(amountIn?.kind));
 check('amountIn amount is the example value', amountIn?.amount === '1000000000000000000');
 
-const version = '0.13.0';
+const version = '0.16.0';
 const successBody = {
   data: {
     outputs: {

@@ -47,6 +47,15 @@
  *   route-exact       — wrap 0.1 native ETH into WETH via /compose/route
  *   route-all         — unwrap the whole WETH balance to ETH via /compose/route
  *   supported-chains  — list the chains this deployment supports, and guard on them
+ *
+ * Experimental examples use experimental ops and materialisers (see README.md,
+ * "Experimental flashloan examples"); a backend that does not enable them
+ * rejects the request with `validation_error`:
+ *   debt-rebalance    — switch an Aave v3 debt from USDC to EURC with one flashloan and an exact-output swap
+ *   debt-migration    — migrate an Aave v3 WETH/USDC position to Morpho Blue with two flashloans
+ *   debt-migration-swap — migrate an Aave v3 USDC debt into Morpho Blue WETH/EURC, swapping the EURC borrow to USDC
+ *   debt-migration-swap-exact-out — the same migration with an exact-output swap
+ *   flashloan-repay   — borrow USDC in a flashloan and repay principal and fee from two handles
  */
 // Load a local `.env` (if present) before any other module reads process.env.
 import './loadEnv.js';
@@ -84,6 +93,11 @@ import {
 import { buildContinuationSettleExample } from './continuationSettle.js';
 import { buildDepositFromProxy } from './depositFromProxy.js';
 import { buildDustSweepExample } from './dustSweep.js';
+import { buildAaveDebtRebalanceExactOut } from './experimental/aaveDebtRebalanceExactOut.js';
+import { buildAaveToMorphoDebtMigration } from './experimental/aaveToMorphoDebtMigration.js';
+import { buildAaveToMorphoDebtMigrationWithSwap } from './experimental/aaveToMorphoDebtMigrationWithSwap.js';
+import { buildAaveToMorphoDebtMigrationWithSwapExactOut } from './experimental/aaveToMorphoDebtMigrationWithSwapExactOut.js';
+import { buildTrivialFlashloanRepay } from './experimental/flashloanRepay.js';
 import { buildFlySwapExample } from './flySwap.js';
 import { buildLifiSwapExample } from './lifiSwap.js';
 import { buildLifiZapExample } from './lifiZap.js';
@@ -259,6 +273,38 @@ const EXAMPLES: Record<string, () => ComposeCompileRequest> = {
       usdcAmount: '1000000000',
       wethAmount: '400000000000000000',
     }).request,
+  'debt-rebalance': () =>
+    buildAaveDebtRebalanceExactOut({
+      owner: OWNER,
+      collateralAmount: '1000000000000000000',
+      debtAmount: '1000000000',
+      newDebtBorrowAmount: '965000000',
+    }).request,
+  'debt-migration': () =>
+    buildAaveToMorphoDebtMigration({
+      owner: OWNER,
+      collateralAmount: '1000000000000000000',
+      debtAmount: '1000000000',
+    }).request,
+  'debt-migration-swap': () =>
+    buildAaveToMorphoDebtMigrationWithSwap({
+      owner: OWNER,
+      collateralAmount: '1000000000000000000',
+      debtAmount: '1000000000',
+      morphoBorrowAmount: '1100000000',
+    }).request,
+  'debt-migration-swap-exact-out': () =>
+    buildAaveToMorphoDebtMigrationWithSwapExactOut({
+      owner: OWNER,
+      collateralAmount: '1000000000000000000',
+      debtAmount: '1000000000',
+      morphoBorrowAmount: '975000000',
+    }).request,
+  'flashloan-repay': () =>
+    buildTrivialFlashloanRepay({
+      owner: OWNER,
+      amount: '10000000000',
+    }).request,
 };
 
 // `/compose/route` examples build a `ComposeRouteRequest` and go to
@@ -313,29 +359,15 @@ const printComposeError = (err: unknown): void => {
 };
 
 const run = async () => {
-  const args = process.argv.slice(2);
-  const useStaged = args.includes('--staged');
-  const name = args.find((arg) => arg !== '--staged');
-
-  // Staged examples reference lifi.flashloanRepay, which the pinned 0.13.0 SDK
-  // does not generate. --staged loads them without pulling them into the
-  // production type-check. Do not install the npm staging tag (0.4.0-staging.1)
-  // over this checkout: that pair is incompatible with the live 0.13.0 server.
-  let examples: Record<string, () => ComposeCompileRequest> = EXAMPLES;
-  if (useStaged) {
-    const stagedModule = (await import(
-      `${import.meta.dirname}/staged/registry.js`
-    )) as { STAGED_EXAMPLES: Record<string, () => ComposeCompileRequest> };
-    examples = { ...EXAMPLES, ...stagedModule.STAGED_EXAMPLES };
-  }
+  const name = process.argv[2];
 
   const queryExample = name ? QUERY_EXAMPLES[name] : undefined;
   const routeBuilder = name ? ROUTE_EXAMPLES[name] : undefined;
-  const builder = name ? examples[name] : undefined;
+  const builder = name ? EXAMPLES[name] : undefined;
 
   if (!builder && !routeBuilder && !queryExample) {
     const valid = [
-      ...Object.keys(examples),
+      ...Object.keys(EXAMPLES),
       ...Object.keys(ROUTE_EXAMPLES),
       ...Object.keys(QUERY_EXAMPLES),
     ]
@@ -346,7 +378,7 @@ const run = async () => {
         name ? `unknown example "${name}"` : 'no example specified'
       }\n` +
         `Valid examples: ${valid}\n` +
-        `Usage: COMPOSER_BASE_URL=https://composer.li.quest npm run example -- [--staged] <name>`,
+        `Usage: COMPOSER_BASE_URL=https://composer.li.quest npm run example <name>`,
     );
     process.exit(1);
   }
