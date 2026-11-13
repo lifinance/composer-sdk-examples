@@ -132,18 +132,18 @@
   resolved "https://registry.yarnpkg.com/@esbuild/win32-x64/-/win32-x64-0.28.2.tgz#b21affb804cc167c133d95f45b3a1dc1323b9a87"
   integrity sha512-5ebpxr3nWMzrL/rnUI755Jkuee0bHL/Gq0WTF9lvcpv73wAp5eu8MfBUgWK9bhWvZjj7yX8etf/8tI8Ney695g==
 
-"@lifi/compose-spec@0.13.0":
-  version "0.13.0"
-  resolved "https://registry.npmjs.org/@lifi/compose-spec/-/compose-spec-0.13.0.tgz"
-  integrity sha512-jfxoXzbx7ZamndetWxfjTTpxAupYHQNA2MrCN5YThBPempxSuQ9h8Vv8AmgZQPCAI7UnrTmbyFhqKuwFImn1sg==
+"@lifi/compose-spec@0.16.0":
+  version "0.16.0"
+  resolved "https://registry.yarnpkg.com/@lifi/compose-spec/-/compose-spec-0.16.0.tgz#139449b9426aecd54adb99b7610084038342ef98"
+  integrity sha512-ITnnvcdJjVORg5hJzzAhiUnbjKON8DCPAGJwmw3YAwMloI4JE9oZCoHkn6nFa8kk/2/51O+vQFayBDqHzAXL7Q==
   dependencies:
     effect "^3.21.0"
     zod "^4.6.6"
 
-"@lifi/composer-sdk@0.13.0":
-  version "0.13.0"
-  resolved "https://registry.npmjs.org/@lifi/composer-sdk/-/composer-sdk-0.13.0.tgz"
-  integrity sha512-6JzgO7qDSHVNdh2g5js1qHS29oKcxrLJ6ninend5RCSmBMwbaJt/8pHVXXu5/zGHR1iNH4GjXK+v/ghyW+tJfQ==
+"@lifi/composer-sdk@0.16.0":
+  version "0.16.0"
+  resolved "https://registry.yarnpkg.com/@lifi/composer-sdk/-/composer-sdk-0.16.0.tgz#0d1cf46d331a87de965437e47bfa6188e77a8cb9"
+  integrity sha512-KcfexmxfdlYFJX99KewBacwyvmibSiRUY4WVMFF5nc0KIpAzb1ZkxjqI4pgiMHBo9PqkWh5Lv/AxlxRjA4MlqQ==
   dependencies:
     abitype "^1.2.3"
     effect "^3.21.0"

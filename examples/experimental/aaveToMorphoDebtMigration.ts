@@ -73,7 +73,7 @@ export interface AaveToMorphoDebtMigrationInput {
  *   off it with `core.splitAt`, and transfers the rest to the signer: the
  *   loan proceeds.
  *
- * After execution the signer holds `debtAmount` USDC (1 wei less when the
+ * After execution the signer holds `debtAmount` USDC (up to 2 wei less when the
  * max-mode repay overshoots) and an open Morpho Blue position
  * (`collateralAmount` WETH collateral, USDC debt equal to the reserve). The
  * Aave position is closed.
@@ -88,7 +88,7 @@ export const buildAaveToMorphoDebtMigration = ({
 } => {
   const sdk = createComposeSdk({ baseUrl: BASE_URL, apiKey: API_KEY });
 
-  // Both flashloan legs absorb Aave's 1-wei scaled-balance skew: the USDC
+  // Both flashloan legs absorb Aave's 2-wei scaled-balance skew: the USDC
   // leg funds a max-mode repay, the WETH leg is covered by a withdrawal.
   const debtFlashloanAmount = padForAaveDebtRounding(debtAmount);
   const collateralFlashloanAmount =
@@ -185,7 +185,7 @@ export const buildAaveToMorphoDebtMigration = ({
   // holds the proceeds plus the USDC leg's reserve (the Morpho borrow), which
   // must stay in the proxy for the runtime to repay Aave. The split keeps
   // `min(balance, reserve)` as its head and pays out only the tail. The live
-  // balance, not the fixed borrow amount, absorbs the up-to-1-wei overshoot of
+  // balance, not the fixed borrow amount, absorbs the up-to-2-wei overshoot of
   // the `mode: 'max'` repay.
   //
   // A request-level `sweepTo` cannot do this: `outputs` reports the unbound
