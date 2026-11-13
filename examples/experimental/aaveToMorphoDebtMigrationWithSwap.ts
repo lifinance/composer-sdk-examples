@@ -105,7 +105,9 @@ export interface AaveToMorphoDebtMigrationWithSwapInput {
  *
  * After execution the signer holds a Morpho Blue position with
  * `collateralAmount` WETH collateral and `morphoBorrowAmount` EURC debt; the
- * Aave position is closed.
+ * Aave position is closed. Dust stays on the proxy: the few wei of WETH the
+ * withdrawal returns above the collateral leg, and any EURC the swap leaves
+ * unsold (its `unspentIn`).
  */
 export const buildAaveToMorphoDebtMigrationWithSwap = ({
   owner,

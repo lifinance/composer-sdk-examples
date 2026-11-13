@@ -21,7 +21,7 @@ export interface AaveRepayInput {
   readonly borrowAmount: `${bigint}`;
   /**
    * WETH deposited to repay the debt (18 dp). Must exceed `borrowAmount`:
-   * Aave's scaled-balance rounding can leave the debt 1 wei above the
+   * Aave's scaled-balance rounding can leave the debt up to 2 wei above the
    * borrowed amount, so the `max`-mode repay needs a little headroom.
    */
   readonly repayAmount: `${bigint}`;
