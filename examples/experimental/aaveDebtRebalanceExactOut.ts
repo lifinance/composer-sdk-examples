@@ -258,8 +258,8 @@ export const buildAaveDebtRebalanceExactOut = ({
 
   // Forward the genuinely-loose USDC — the loan proceeds — to the signer. We
   // read the proxy's LIVE USDC balance rather than the fixed borrowed amount:
-  // Aave's `mode: 'max'` USDC-debt repay overshoots the borrow by up to 1 wei
-  // (ray-math round-trip), so the proxy ends a wei short of `borrowed` —
+  // Aave's `mode: 'max'` USDC-debt repay overshoots the borrow by up to 2 wei
+  // (ray-math round-trip), so the proxy ends up to 2 wei short of `borrowed` —
   // transferring a fixed amount would revert "transfer amount exceeds balance".
   // The live balance also holds the flashloan reserve (`exactUsdcOut`), which
   // must stay in the proxy for the runtime to repay Aave, so the split keeps
