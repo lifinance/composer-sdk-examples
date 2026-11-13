@@ -22,7 +22,7 @@
     "json-colorizer": "^3.0.1"
   },
   "devDependencies": {
-    "@types/node": "^22.10.0",
+    "@types/node": "^24.19.2",
     "tsx": "^4.20.4",
     "typescript": "^5.9.2"
   }
