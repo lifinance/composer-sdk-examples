@@ -4,9 +4,9 @@ Runnable examples for [`@lifi/composer-sdk`](https://www.npmjs.com/package/@lifi
 
 These examples are ported from the SDK's own `src/examples/` directory so they can be run directly, without digging through `node_modules`. Each example builds a `ComposeCompileRequest`; the runner sends it to a live Compose backend and prints the request and result.
 
-Tracks the pair pinned in `package.json`: `@lifi/composer-sdk@0.16.0` and `@lifi/compose-spec@0.16.0`. Requires Node.js >= 24, matching the SDK.
+Tracks the pair pinned in `package.json`: `@lifi/composer-sdk@0.17.0` and `@lifi/compose-spec@0.17.0`. Requires Node.js >= 24, matching the SDK.
 
-The SDK refuses a compile answered by a backend on an older minor version (`server_outdated`), so a live run needs a backend whose `x-lifi-composer-version` response header reports 0.16.x. The npm `latest` and `next` tags are not a compatibility guarantee: either can point at a different minor version than the production server. Keep the explicit pins; before upgrading, check the target backend's `x-lifi-composer-version` header and choose the matching SDK/spec pair.
+The SDK refuses a compile answered by a backend on an older minor version (`server_outdated`), so a live run needs a backend whose `x-lifi-composer-version` response header reports 0.17.x. The npm `latest` and `next` tags are not a compatibility guarantee: either can point at a different minor version than the production server. Keep the explicit pins; before upgrading, check the target backend's `x-lifi-composer-version` header and choose the matching SDK/spec pair.
 
 ## Setup
 
@@ -16,7 +16,7 @@ npm install
 
 This pulls in `@lifi/composer-sdk` and its `@lifi/compose-spec` peer dependency (pinned in lockstep), plus `tsx` to run the TypeScript directly.
 
-When copying an example into your own project, install the version pinned in `package.json` rather than a moving dist-tag, e.g. `npm install @lifi/composer-sdk@0.16.0 @lifi/compose-spec@0.16.0`. The npm `latest` tag can lag behind and may not include every op these examples use.
+When copying an example into your own project, install the version pinned in `package.json` rather than a moving dist-tag, e.g. `npm install @lifi/composer-sdk@0.17.0 @lifi/compose-spec@0.17.0`. The npm `latest` tag can lag behind and may not include every op these examples use.
 
 ## Configuration
 
@@ -64,6 +64,8 @@ Run with no name to see the full list. Available examples:
 | `consolidate-eth`   | Consolidate multiple ERC-20 balances into native ETH               |
 | `continuation-settle` | Swap USDC to WETH on Base, escrow it for a deferred settlement that supplies it to Aave |
 | `continuation-bridge-settle` | Bridge Arbitrum USDC into a Base settlement escrow that supplies it to Aave |
+| `continuation-two-outcomes` | Escrow 1,000 USDC on Base for one settlement with two outcomes: the leg swaps half to DAI and supplies half to Aave, delivering DAI and aBasUSDC |
+| `continuation-buy-with-change` | Swap WETH to USDC on Base and escrow it; the leg buys exactly 300 EURC for a payee and returns the unspent USDC to the owner |
 | `continuation-exact-invoice` | Escrow USDC on Base for an exact continuation leg that pays a Request Network invoice and returns the surplus |
 | `continuation-exact-swap-invoice` | Swap WETH to USDC on Base and escrow the output for the same exact invoice leg |
 | `swap-recipient`    | Swap WETH + DAI to USDC and send to a different recipient           |
@@ -108,6 +110,12 @@ health factor resolves.
 The `continuation-*` examples escrow funds for a deferred settlement through the
 `intent-factory` settlement provider. They compile only against a backend that
 configures that provider, such as `https://composer.li.quest`.
+
+One settle node can commit several outcomes from one escrow, as in
+`continuation-two-outcomes` and `continuation-buy-with-change`. Each entry of
+`config.outcomes` has its own destination and its own floor, and the response
+reports outcome `i` at `outputs["<settle>.outcomes.<i>"]`. The settlement
+delivers all outcomes or none.
 
 The `continuation-exact-*` examples settle through an exact continuation leg
 (`continuation.settle` with `exact: true`): the escrow is bound to the leg's

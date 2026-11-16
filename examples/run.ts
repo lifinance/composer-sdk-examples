@@ -18,6 +18,8 @@
  *   consolidate-eth   — consolidate ERC-20 balances to native ETH
  *   continuation-settle        — swap USDC to WETH on Base, escrow it for a deferred settlement
  *   continuation-bridge-settle — bridge Arbitrum USDC into a Base settlement escrow
+ *   continuation-two-outcomes  — escrow Base USDC for a settlement that delivers DAI and aBasUSDC
+ *   continuation-buy-with-change — swap WETH to USDC on Base, escrow it for a settlement that buys exact EURC for a payee and returns the USDC change
  *   continuation-exact-invoice      — escrow USDC on Base for an exact leg that pays a Request Network invoice
  *   continuation-exact-swap-invoice — swap WETH to USDC on Base, escrow it for the same exact invoice leg
  *   deposit-proxy     — deposit tokens already on the proxy into Aave
@@ -85,12 +87,14 @@ import { API_KEY, BASE_URL, OWNER, PROXY, RECIPIENT } from './config.js';
 import { buildConsolidateToEth } from './consolidateToEth.js';
 import { buildConsolidateStablesToUsdc } from './consolidateToUsdc.js';
 import { buildContinuationBridgeSettleExample } from './continuationBridgeSettle.js';
+import { buildContinuationBuyWithChangeExample } from './continuationBuyWithChange.js';
 import {
   buildContinuationExactInvoiceExample,
   buildContinuationExactSwapInvoiceExample,
   type UsdcInvoice,
 } from './continuationExactInvoice.js';
 import { buildContinuationSettleExample } from './continuationSettle.js';
+import { buildContinuationTwoOutcomesExample } from './continuationTwoOutcomes.js';
 import { buildDepositFromProxy } from './depositFromProxy.js';
 import { buildDustSweepExample } from './dustSweep.js';
 import { buildAaveDebtRebalanceExactOut } from './experimental/aaveDebtRebalanceExactOut.js';
@@ -186,6 +190,16 @@ const EXAMPLES: Record<string, () => ComposeCompileRequest> = {
     buildContinuationSettleExample({ owner: OWNER }).request,
   'continuation-bridge-settle': () =>
     buildContinuationBridgeSettleExample({ owner: OWNER }).request,
+  'continuation-two-outcomes': () =>
+    buildContinuationTwoOutcomesExample({ owner: OWNER }).request,
+  'continuation-buy-with-change': () =>
+    buildContinuationBuyWithChangeExample({
+      owner: OWNER,
+      payee: RECIPIENT,
+      wethAmount: '300000000000000000',
+      eurcAmount: '300000000',
+      minChangeAmount: '150000000',
+    }).request,
   'continuation-exact-invoice': () =>
     buildContinuationExactInvoiceExample({
       owner: OWNER,

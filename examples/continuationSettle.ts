@@ -100,7 +100,7 @@ export const buildContinuationSettleExample = ({
 
   const flow = builder.build();
 
-  // No `sweepTo`: the swap output funds the escrow and the settle output is
+  // No `sweepTo`: the swap output funds the escrow and the outcome is
   // delivered by the settlement, never landing in the VM.
   const request = sdk.request(flow, {
     signer: owner,
