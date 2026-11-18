@@ -5,8 +5,8 @@ Each file in `examples/` exports a `build*` function that returns a
 `ComposeCompileRequest` (`{ flow, run }`). The runner (`examples/run.ts`) prints that
 request and sends it to a live Compose backend through `sdk.client.compile`. The
 runner never signs or broadcasts a transaction. `@lifi/composer-sdk` and
-`@lifi/compose-spec` are pinned together at `0.16.0`; a live compile needs a
-backend whose `x-lifi-composer-version` reports 0.16.x. Keep those pins unless
+`@lifi/compose-spec` are pinned together at `0.17.0`; a live compile needs a
+backend whose `x-lifi-composer-version` reports 0.17.x. Keep those pins unless
 you also check the target backend's version header. Do not switch the pins to
 the `latest` or `next` dist-tags. README.md explains why. The flashloan
 examples in `examples/experimental/` call the SDK's experimental namespace
