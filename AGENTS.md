@@ -64,3 +64,7 @@ verify/
   `noUnusedParameters` and `noUncheckedIndexedAccess`.
 - `npm test` does not show that a live compile works. A live compile needs
   `npm run example <name>` with a real key.
+
+## Ownership
+
+Composer squad, reviewer Rory (`@rory660`). Review requests: request the reviewer above on the PR.
